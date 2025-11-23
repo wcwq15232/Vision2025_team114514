@@ -10,6 +10,8 @@ struct PoseResult {
     cv::Vec3d rotation;       // 旋转向量
     double distance;          // 距离
     bool valid;
+    float yaw;
+    float pitch;
 };
 
 class PoseCalculator {
@@ -19,7 +21,6 @@ private:
     std::vector<cv::Point3f> objectPoints; // 矩形在世界坐标系中的3D点
 public:
     PoseCalculator(float fx, float fy, float cx, float cy, float rect_width, float rect_height);
-    std::pair<double, double> getOrientationAngles(const std::vector<cv::Point2f>& imagePoints);
     PoseResult getPose(const std::vector<cv::Point2f>& imagePoints);
 };
 

@@ -98,8 +98,8 @@ private:
     PoseCalculator poseCalculator {FX, FY, CX, CY, ARMOR_WIDTH, ARMOR_HEIGHT};
 
     void callback_camera(sensor_msgs::msg::Image::SharedPtr msg);
-    void callback_stage_change(referee_pkg::msg::RaceStage msg);
-    void callback_hit_srv(referee_pkg::srv::HitArmor_Request request, referee_pkg::srv::HitArmor_Response response);
+    void callback_stage_change(referee_pkg::msg::RaceStage::SharedPtr msg);
+    void callback_hit_srv(referee_pkg::srv::HitArmor_Request::SharedPtr request, referee_pkg::srv::HitArmor_Response::SharedPtr response);
     void preprocess(cv::Mat &src, cv::Mat &result);
 
 

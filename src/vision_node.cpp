@@ -33,6 +33,7 @@ using namespace cv;
 int max_history_length = 20;
 int abandon_count = 20;
 string NUMS_PATH = "install/team_challenge/share/team_challenge/nums/";
+double V = 15;
 
 TestNode::TestNode(string name) : Node(name){
     RCLCPP_INFO(this->get_logger(), "Initializing TestNode");
@@ -122,42 +123,42 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
 
     threshold(mask, mask, 75, 255, THRESH_BINARY);
     dilate(mask, mask, kernel_3);
-    imshow("a", mask);
+    // imshow("a", mask);
 
     findContours(mask, red_contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
     getSphere(red_contours);
     getArmor(red_contours);
-    getArmorPose();
+    // getArmorPose();
 
     // thread_.join();
-    draw_history_points();
+    // draw_history_points();
 
     // 展示结果图这一块
     showResult();
     sendResult(msg);
 }
 
-void TestNode::callback_stage_change(referee_pkg::msg::RaceStage msg) {
-    stage = msg.stage;
+void TestNode::callback_stage_change(referee_pkg::msg::RaceStage::SharedPtr msg) {
+    stage = msg->stage;
     RCLCPP_INFO(this->get_logger(), "stage changed to %d", stage);
 }
 
-void TestNode::callback_hit_srv(referee_pkg::srv::HitArmor_Request request, referee_pkg::srv::HitArmor_Response response) {
+void TestNode::callback_hit_srv(referee_pkg::srv::HitArmor_Request::SharedPtr request, referee_pkg::srv::HitArmor_Response::SharedPtr response) {
     vector<Point2f> points(4);
-    float g;
 
     for (int i = 0; i < 4; ++i){
-        points[i].x = request.modelpoint[i].x;
-        points[i].y = request.modelpoint[i].y;
+        points[i].x = request->modelpoint[i].x;
+        points[i].y = request->modelpoint[i].y;
     }
     
-    g = request.g;
+    PoseResult result = poseCalculator.getPose(points);
+    Point3f &tmp = result.position;
 
-    // TODO
+    // TODO 卡尔曼滤波做预测 TODO
 
-    // response.yaw = ;
-    // response.pitch = ;
-    // response.roll = ;
+    response->yaw = result.yaw;
+    response->pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, request->g);
+    response->roll = 0;
 }
 
 
@@ -396,7 +397,7 @@ void TestNode::matchLights()
             Mat num_img;
 
             getNumberImg(armor, num_img);
-            imshow("num of " + to_string(i + 1) + " " + to_string(j + 1), num_img);
+            // imshow("num of " + to_string(i + 1) + " " + to_string(j + 1), num_img);
 
             armor.number = matchNum(num_img);
 
@@ -455,7 +456,7 @@ void TestNode::getNumberImg(Armor &armor, Mat &num_img){
     threshold(num_img, num_img, 200, 255, THRESH_BINARY);
 
 
-    imshow("num_img", num_img);
+    // imshow("num_img", num_img);
 }
 
 int TestNode::matchNum(Mat &num_img){
@@ -507,10 +508,18 @@ int TestNode::matchNum(Mat &num_img){
 void TestNode::getArmorPose(){
     for (Armor& armor: armor_list){
         armor.pose = poseCalculator.getPose(armor.points);
-        putText(img_result, to_string(armor.pose.distance) + "m", Point2f(armor.center.x + armor.width / 2 + 20, armor.center.y), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
-        putText(img_result, to_string(armor.pose.position.x), Point2f(armor.center.x + armor.width / 2 + 20, armor.center.y + 20), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
-        putText(img_result, to_string(armor.pose.position.y), Point2f(armor.center.x + armor.width / 2 + 20, armor.center.y + 40), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
-        putText(img_result, to_string(armor.pose.position.z), Point2f(armor.center.x + armor.width / 2 + 20, armor.center.y + 60), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
+        // TODO 卡尔曼滤波做预测 TODO
+        Point3f &tmp = armor.pose.position;
+        float pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, 9.8);
+        if (pitch == NAN)
+            pitch = -1;
+        // RCLCPP_INFO(this->get_logger(), "计算击打角度 yaw:%f pitch: %f roll:0", armor.pose.yaw, pitch);
+        putText(img_result, "dis:" + to_string(armor.pose.distance) + "m", Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
+        putText(img_result, "x:" + to_string(armor.pose.position.x), Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y + 20), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
+        putText(img_result, "y:" + to_string(armor.pose.position.y), Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y + 40), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
+        putText(img_result, "z:" + to_string(armor.pose.position.z), Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y + 60), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
+        putText(img_result, "yaw:" + to_string(armor.pose.yaw), Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y + 80), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
+        putText(img_result, "pitch:" + to_string(pitch), Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y + 100), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
     }
 }
 
@@ -533,8 +542,6 @@ void TestNode::draw_history_points(){
         connectPoints(rect_history_points, img_result);
     }
 }
-
-
 
 void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
     try{

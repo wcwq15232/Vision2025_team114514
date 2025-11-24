@@ -12,6 +12,7 @@ extern void draw4points(const std::vector<cv::Point2f> &points, cv::Mat &result_
 extern inline void drawRotatedRect(cv::RotatedRect &rect, cv::Mat img, cv::Scalar color = cv::Scalar(20, 255, 20));
 extern inline void drawRotatedRect(std::vector<cv::Point2f> points, cv::Mat img, cv::Scalar color = cv::Scalar(20, 255, 20));
 extern void adjustRotatedRect(cv::RotatedRect& rect);
+extern inline void connectPoints(const std::deque<cv::Point2f> &points, cv::Mat &result_image);
 
 extern std::vector<cv::Scalar> point_colors;
 std::vector<cv::Scalar> point_colors = {

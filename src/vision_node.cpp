@@ -21,14 +21,18 @@
 #include <deque>
 #include <map>
 
-#include "tools.hpp"
-#include "poseCalculator.hpp"
+#include "basic_types.hpp"
 
 #include "vision_node.hpp"
+#include "tools.hpp"
 
 using std::map, std::vector, std::string, std::cin, std::cout, std::endl, std::to_string;
 using namespace rclcpp;
 using namespace cv;
+
+
+#include "poseCalculator.hpp"
+#include "kalmanFilater.hpp"
 
 int max_history_length = 20;
 int abandon_count = 20;
@@ -128,7 +132,7 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     findContours(mask, red_contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
     getSphere(red_contours);
     getArmor(red_contours);
-    // getArmorPose();
+    getArmorPose();
 
     // thread_.join();
     // draw_history_points();

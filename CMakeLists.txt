@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.8...3.10)
 project(team_challenge)
 
-# 设置 C++ 标准
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
-# 查找依赖包
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-Wno-deprecated-declarations)
+endif()
+
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -16,13 +18,12 @@ find_package(cv_bridge REQUIRED)
 find_package(referee_pkg REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    add_compile_options(-Wno-deprecated-declarations)
-endif()
-
 add_library(poseCalculator src/poseCalculator.cpp)
+add_library(kalmanFilter src/kalmanFilter.cpp)
+add_library(trace src/trace.cpp)
 
 add_executable(TestNode src/vision_node.cpp)
+
 ament_target_dependencies(TestNode
   rclcpp
   std_msgs
@@ -34,20 +35,23 @@ ament_target_dependencies(TestNode
 )
 
 target_link_libraries(TestNode ${OpenCV_LIBS})
-target_link_libraries(TestNode ${OpenCV_LIBS})
+target_link_libraries(poseCalculator ${OpenCV_LIBS})
+target_link_libraries(kalmanFilter ${OpenCV_LIBS})
 
 # 为Vision_test添加消息类型支持（新方法）
-target_link_libraries(TestNode ${typesupport_target} poseCalculator)
+target_link_libraries(TestNode ${typesupport_target} poseCalculator kalmanFilter trace)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 target_include_directories(TestNode PRIVATE "include/")
 target_include_directories(poseCalculator PRIVATE "include/")
+target_include_directories(kalmanFilter PRIVATE "include/")
+target_include_directories(trace PRIVATE "include/")
 
-# 安装Vision_test
 install(TARGETS TestNode
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# 数字模板
 install(DIRECTORY nums
 DESTINATION share/${PROJECT_NAME}/
 )

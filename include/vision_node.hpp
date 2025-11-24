@@ -14,59 +14,16 @@
 #include "referee_pkg/srv/hit_armor.hpp"
 
 #include "poseCalculator.hpp"
+#include "kalmanFilater.hpp"
+#include "basic_types.hpp"
 
 float ARMOR_WIDTH = 0.705f;
 float ARMOR_HEIGHT = 0.230f;
 
-float FX = 383.9f; // 焦距x (需要根据实际相机标定调整)
-float FY = 383.9f; // 焦距y (需要根据实际相机标定调整)
+float FX = 554.383f; // 焦距x
+float FY = 554.383; // 焦距y
 float CX = 320.0f; // 主点x
-float CY = 240.0f; // 主点y
-
-extern std::vector<std::string> obj_names;
-std::vector<std::string> obj_names {
-    "sphere",
-    "armor",
-    "armor_red_2",
-    "armor_red_3",
-    "armor_red_4",
-    "armor_red_5",
-    "rect"
-};
-// "rect_move"
-
-struct Sphere {
-    cv::Point2f center;
-    float radius = 0;
-    std::vector<cv::Point2f> points;
-};
-
-struct Armor {
-    cv::Point2f center;
-    int number;
-    float angel;
-    float width;
-    float height;
-    std::vector<cv::Point2f> points;
-    std::vector<cv::Point2f> points2;
-    PoseResult pose;
-};
-
-struct Light {
-    cv::Point2f center;
-    cv::Point2f top;
-    cv::Point2f button;
-    cv::Point2f top2;
-    cv::Point2f button2;
-    float angle;
-    float width;
-    float height;
-};
-
-struct Rect_s {
-    cv::Point2f center;
-    std::vector<cv::Point2f> points;
-};
+float CY = 320.0f; // 主点y
 
 cv::Mat kernel_3 = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
 cv::Mat kernel_5 = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));

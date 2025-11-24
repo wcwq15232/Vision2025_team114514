@@ -73,7 +73,6 @@ private:
     int matchNum(cv::Mat &num_img);
     void getArmorPose();
 
-
     void sendResult(sensor_msgs::msg::Image::SharedPtr msg);
     void showResult();
 };

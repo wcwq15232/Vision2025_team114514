@@ -26,13 +26,12 @@
 #include "vision_node.hpp"
 #include "tools.hpp"
 
+#include "poseCalculator.hpp"
+#include "kalmanFilater.hpp"
+
 using std::map, std::vector, std::string, std::cin, std::cout, std::endl, std::to_string;
 using namespace rclcpp;
 using namespace cv;
-
-
-#include "poseCalculator.hpp"
-#include "kalmanFilater.hpp"
 
 int max_history_length = 20;
 int abandon_count = 20;
@@ -159,7 +158,6 @@ void TestNode::callback_hit_srv(referee_pkg::srv::HitArmor_Request::SharedPtr re
     Point3f &tmp = result.position;
 
     // TODO 卡尔曼滤波做预测 TODO
-
     response->yaw = result.yaw;
     response->pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, request->g);
     response->roll = 0;
@@ -216,14 +214,12 @@ void TestNode::getSphere(vector<vector<Point>> &contours){
             // 添加到发送列表
             sphere_list.push_back(tmp_sphere);
 
-
             for (int j = 0; j < 4; j++){
                 RCLCPP_INFO(this->get_logger(),
                             "Sphere %d, Point %d (%s): (%.1f, %.1f)",
                             valid_spheres + 1, j + 1, point_names[j].c_str(),
                             tmp_sphere.points[j].x, tmp_sphere.points[j].y);
             }
-
         }
     }
 }
@@ -342,9 +338,6 @@ void TestNode::getLights(vector<vector<Point>> &contours)
 
         light_list.push_back(light);
 
-
-        // 自己试试这些玩意的效果  主要是debug用的
-
         // line(img_result, light.top, light.button, Scalar(255, 0, 0), 3);
         // circle(img_result, tmp.center, 3, Scalar(0, 255, 0), 4);
 
@@ -444,7 +437,6 @@ void TestNode::getArmor(vector<vector<Point>> &contours)
 
 void TestNode::getNumberImg(Armor &armor, Mat &num_img){
     int outWidth = 160, outHeight = 123;
-
     // draw4points(armor.points2, img_result);
 
     vector<Point2f> dstPoints {
@@ -459,12 +451,10 @@ void TestNode::getNumberImg(Armor &armor, Mat &num_img){
     cvtColor(num_img, num_img, COLOR_BGR2GRAY);
     threshold(num_img, num_img, 200, 255, THRESH_BINARY);
 
-
     // imshow("num_img", num_img);
 }
 
 int TestNode::matchNum(Mat &num_img){
-    // AI generated
     if (num_imgs.size() != 5 || num_img.empty()) {
         std::cerr << "Error: Invalid input" << endl;
         return -1;
@@ -481,7 +471,6 @@ int TestNode::matchNum(Mat &num_img){
             continue;
         }
 
-        // 使用标准相关系数匹配方法
         matchTemplate(num_img, num_imgs[i], result, TM_CCOEFF_NORMED);
         
         double minVal, maxVal_temp;

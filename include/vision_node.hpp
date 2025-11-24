@@ -19,6 +19,7 @@
 
 float ARMOR_WIDTH = 0.705f;
 float ARMOR_HEIGHT = 0.230f;
+int FPS = 90;
 
 float FX = 554.383f; // 焦距x
 float FY = 554.383; // 焦距y
@@ -36,6 +37,7 @@ public:
     ~TestNode();
 private:
     int stage;
+    ArmorKalmanFilter kalman_filter;
 
     std::vector<cv::Mat> num_imgs; 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr Image_sub;
@@ -64,7 +66,7 @@ private:
     void calculateStableSpherePoints(Sphere &sphere);
 
     void getRect(std::vector<std::vector<cv::Point>> &contours);
-    void draw_history_points();
+    void draw_predit_points();
 
     void getArmor(std::vector<std::vector<cv::Point>> &contours);
     void getLights(std::vector<std::vector<cv::Point>> &contours);

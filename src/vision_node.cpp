@@ -56,6 +56,8 @@ TestNode::TestNode(string name) : Node(name){
         cout << "长" << num_imgs[i].cols << "宽" << num_imgs[i].rows << endl;
         RCLCPP_INFO(this->get_logger(), "num%d img read successfully", i + 1);
     }
+
+    kalman_filter = ArmorKalmanFilter(8);
 }
 
 TestNode::~TestNode() { destroyWindow("Detection Result"); }
@@ -134,7 +136,7 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     getArmorPose();
 
     // thread_.join();
-    // draw_history_points();
+    draw_predit_points();
 
     // 展示结果图这一块
     showResult();
@@ -506,6 +508,7 @@ void TestNode::getArmorPose(){
         float pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, 9.8);
         if (pitch == NAN)
             pitch = -1;
+        armor.predit_time = tmp.y / (V * cos(pitch));
         // RCLCPP_INFO(this->get_logger(), "计算击打角度 yaw:%f pitch: %f roll:0", armor.pose.yaw, pitch);
         putText(img_result, "dis:" + to_string(armor.pose.distance) + "m", Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
         putText(img_result, "x:" + to_string(armor.pose.position.x), Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y + 20), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
@@ -516,24 +519,20 @@ void TestNode::getArmorPose(){
     }
 }
 
-void TestNode::draw_history_points(){
-    if (rect_list.empty()) {
-        if (!rect_history_points.empty()) {
-            miss_count_rect += 1;
-            if (miss_count_rect > 10) {
-                rect_history_points.clear();
-            } else {
-                connectPoints(rect_history_points, img_result);
-                circle(img_result, rect_history_points[0], 4, Scalar(0, 0, 0), 2);
-            }
-        }
+void TestNode::draw_predit_points(){
+    Point2f predit;
+    if (!armor_list.empty()){
+        kalman_filter.correct(armor_list[0]);
+        circle(img_result, armor_list[0].center, 3, Scalar(200, 200, 200), -1);
     } else {
-        miss_count_rect = 0;
-        if (rect_history_points.size() == max_history_length)
-            rect_history_points.pop_back();
-        rect_history_points.push_front(rect_list[0].center);
-        connectPoints(rect_history_points, img_result);
+        if (kalman_filter.isTracking())
+            kalman_filter.predictWhenLost();
     }
+    predit = kalman_filter.predictSteps(int(armor_list[0].predit_time * FPS));
+
+    // line(img_result, Point2f(0, predit.y), Point2f(639, predit.y), Scalar(0, 0, 0), 1);
+    // line(img_result, Point2f(predit.x, 0), Point2f(predit.x, 639), Scalar(0, 0, 0), 1);
+    circle(img_result, predit, 6, Scalar(0, 255, 0), 2);
 }
 
 void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
@@ -596,7 +595,12 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
 }
 
 void TestNode::showResult(){
-    imshow("Detection Result", img_result);
+    // imshow("Detection Result", img_result);
+
+    Mat result_x2;
+    resize(img_result, result_x2, Size(), 2, 2);
+    imshow("Detection Result", result_x2);
+
     waitKey(1);
 }
 

@@ -9,17 +9,15 @@
 
 #include "poseCalculator.hpp"
 
-extern std::vector<std::string> obj_names;
-
-std::vector<std::string> obj_names {
-    "sphere",
-    "armor",
-    "armor_red_2",
-    "armor_red_3",
-    "armor_red_4",
-    "armor_red_5",
-    "rect"
-};
+// std::vector<std::string> obj_names {
+//     "sphere",
+//     "armor",
+//     "armor_red_2",
+//     "armor_red_3",
+//     "armor_red_4",
+//     "armor_red_5",
+//     "rect"
+// };
 // "rect_move"
 
 
@@ -38,6 +36,7 @@ struct Armor {
     std::vector<cv::Point2f> points;
     std::vector<cv::Point2f> points2;
     PoseResult pose;
+    float predit_time;
 };
 
 struct Light {

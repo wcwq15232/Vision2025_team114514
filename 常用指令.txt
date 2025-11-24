@@ -2,7 +2,7 @@ source install/setup.bash
 colcon build
 
 坐标快捷调节工具
-ros2 run qt_ros_tool qt_ros_tool
+ros2 run qt_ros2_tool qt_ros2_tool
 
 相机启动
 ros2 launch camera_sim_pkg camera.launch.py

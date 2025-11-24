@@ -1,0 +1,64 @@
+source install/setup.bash
+colcon build
+
+坐标快捷调节工具
+ros2 run qt_ros_tool qt_ros_tool
+
+相机启动
+ros2 launch camera_sim_pkg camera.launch.py
+
+启动测试节点
+ros2 run team_challenge TestNode 
+
+以下为模型插入
+球
+ros2 launch target_model_pkg target_action.launch.py \
+    model:=src/target_model_pkg/urdf/sphere/sphere.sdf \
+    model_name:=sphere \
+    x:=0.0 \
+    y:=5.0 \
+    z:=2.0
+
+长方体
+ros2 launch target_model_pkg target_action.launch.py \
+    model:=src/target_model_pkg/urdf/rectangle/rectangle.sdf \
+    model_name:=rect \
+    x:=0.0 \
+    y:=2.0 \
+    z:=1
+
+装甲板
+ros2 launch target_model_pkg target_action.launch.py \
+    model:=src/target_model_pkg/urdf/armor/armor_1.sdf\
+    model_name:=armor_red_1 \
+    x:=0.0 \
+    y:=2.0 \
+    z:=0.6 
+
+ros2 launch target_model_pkg target_action.launch.py \
+    model:=src/target_model_pkg/urdf/armor/armor_2.sdf\
+    model_name:=armor_red_2 \
+    x:=0.0 \
+    y:=2.0 \
+    z:=0.6 
+
+ros2 launch target_model_pkg target_action.launch.py \
+    model:=src/target_model_pkg/urdf/armor/armor_3.sdf\
+    model_name:=armor_red_3 \
+    x:=0.0 \
+    y:=2.0 \
+    z:=0.6 
+
+ros2 launch target_model_pkg target_action.launch.py \
+    model:=src/target_model_pkg/urdf/armor/armor_4.sdf\
+    model_name:=armor_red_4 \
+    x:=0.0 \
+    y:=2.0 \
+    z:=0.6 
+
+ros2 launch target_model_pkg target_action.launch.py \
+    model:=src/target_model_pkg/urdf/armor/armor_5.sdf\
+    model_name:=armor_red_5 \
+    x:=0.0 \
+    y:=2.0 \
+    z:=0.6 

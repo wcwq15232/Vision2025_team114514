@@ -141,7 +141,7 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     getArmorPose();
 
     // thread_.join();
-    draw_predit_points();
+    predit_hit();
 
     // 物体跟踪，绘制ID
     {

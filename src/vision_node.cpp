@@ -28,6 +28,7 @@
 
 #include "poseCalculator.hpp"
 #include "kalmanFilater.hpp"
+#include "trace.hpp"
 
 using std::map, std::vector, std::string, std::cin, std::cout, std::endl, std::to_string;
 using namespace rclcpp;
@@ -57,6 +58,10 @@ TestNode::TestNode(string name) : Node(name){
         RCLCPP_INFO(this->get_logger(), "num%d img read successfully", i + 1);
     }
 
+    // 初始化 traceList
+    for (int i = 0; i < OBJECT_CLASS_COUNT; ++i) {
+        traceList.emplace_back(i);
+    }
     kalman_filter = ArmorKalmanFilter(8);
 }
 
@@ -138,6 +143,20 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     // thread_.join();
     draw_predit_points();
 
+    // 物体跟踪，绘制ID
+    {
+        int i = 0;
+        for (auto &trace : traceList) {
+            trace.match_and_update(currentDetections[i]);
+            for (const auto & centroid : trace.active_tracks) {
+                TrackedObject tracked_object = centroid.second;
+                putText(img_result, trace.class_name + "_ID: " + to_string(tracked_object.id), tracked_object.predict(), FONT_HERSHEY_COMPLEX, 1, Scalar(0, 0, 255), 2);
+            }
+            currentDetections[i].clear();
+            i++;
+        }
+    }
+
     // 展示结果图这一块
     showResult();
     sendResult(msg);
@@ -209,6 +228,9 @@ void TestNode::getSphere(vector<vector<Point>> &contours){
                 FONT_HERSHEY_SIMPLEX, 0.5, Scalar(255, 255, 255), 2);
 
             valid_spheres++;
+
+            currentDetections[0].push_back(center);
+
             RCLCPP_INFO(this->get_logger(),
                         "Found sphere: (%.1f, %.1f) R=%.1f C=%.3f", center.x,
                         center.y, radius, circularity);
@@ -274,6 +296,8 @@ void TestNode::getRect(vector<vector<Point>> &contours){
 
             drawRotatedRect(boundRect[i], img_result);
             draw4points(vertices_vec_ordered, img_result);
+
+            currentDetections[1].push_back(boundRect[i].center);
 
             RCLCPP_INFO(this->get_logger(),
                 "Found RECT: (%.1f, %.1f) 宽%.1f 高%.3f", boundRect[i].center.x,
@@ -421,6 +445,9 @@ void TestNode::matchLights()
                             armor.number, armor_list.size(), j + 1, point_names[j].c_str(),
                             armor.points[j].x, armor.points[j].y);
             }
+            currentDetections[armor.number + 1].emplace_back(
+                (armor.points[0].x + armor.points[1].x + armor.points[2].x + armor.points[3].x) / 4,
+                (armor.points[0].y + armor.points[1].y + armor.points[2].y + armor.points[3].y) / 4);
             // line(img_result, center1, center2, Scalar(0, 0, 0), 2);
             // circle(img_result, armor.center, 3, Scalar(0, 255, 0), 4);
         }

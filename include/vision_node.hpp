@@ -16,6 +16,9 @@
 #include "poseCalculator.hpp"
 #include "kalmanFilater.hpp"
 #include "basic_types.hpp"
+#include "trace.hpp"
+
+constexpr int OBJECT_CLASS_COUNT = 7;
 
 float ARMOR_WIDTH = 0.705f;
 float ARMOR_HEIGHT = 0.230f;
@@ -55,6 +58,9 @@ private:
     std::vector<Armor>  armor_list;
 
     PoseCalculator poseCalculator {FX, FY, CX, CY, ARMOR_WIDTH, ARMOR_HEIGHT};
+
+    std::vector<std::vector<Point2f> > currentDetections{OBJECT_CLASS_COUNT};
+    std::vector<Trace> traceList;
 
     void callback_camera(sensor_msgs::msg::Image::SharedPtr msg);
     void callback_stage_change(referee_pkg::msg::RaceStage::SharedPtr msg);

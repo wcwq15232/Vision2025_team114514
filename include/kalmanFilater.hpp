@@ -6,18 +6,18 @@
 
 #include "basic_types.hpp"
 
-class ArmorKalmanFilter {
+class ArmorTracker {
 public:
-    explicit ArmorKalmanFilter(int max_lost_frames = 8);
-    cv::Point2f correct(const Armor& armor);
-    cv::Point2f predictWhenLost();
-    cv::Point2f predictSteps(int n) const;
-    cv::Point2f getCurrentEstimate() const;
-    bool isTracking() const;
-    int getLostCount() const;
+    ArmorTracker(float frame_rate = 30.0f, int max_lost_frames = 10);
+    void update(const cv::Point3f &measurement);
+    void update_lost();
+    cv::Point3f predictFuture(int n_frames) const;
+    cv::Point3f getCurrentEstimate() const;
+    bool isInitialized() const;
 private:
     cv::KalmanFilter kf_;
-    cv::Point2f current_estimate_;
+    float frame_rate_;
+    float dt_;
     int max_lost_frames_;
     int lost_count_;
     bool initialized_;

@@ -57,7 +57,7 @@ TestNode::TestNode(string name) : Node(name){
         RCLCPP_INFO(this->get_logger(), "num%d img read successfully", i + 1);
     }
 
-    kalman_filter = ArmorKalmanFilter(8);
+    kalman_filter = ArmorTracker(FPS, 10);
 }
 
 TestNode::~TestNode() { destroyWindow("Detection Result"); }
@@ -136,7 +136,7 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     getArmorPose();
 
     // thread_.join();
-    draw_predit_points();
+    predit_hit();
 
     // 展示结果图这一块
     showResult();
@@ -159,7 +159,7 @@ void TestNode::callback_hit_srv(referee_pkg::srv::HitArmor_Request::SharedPtr re
     PoseResult result = poseCalculator.getPose(points);
     Point3f &tmp = result.position;
 
-    // TODO 卡尔曼滤波做预测 TODO
+
     response->yaw = result.yaw;
     response->pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, request->g);
     response->roll = 0;
@@ -519,20 +519,29 @@ void TestNode::getArmorPose(){
     }
 }
 
-void TestNode::draw_predit_points(){
-    Point2f predit;
+void TestNode::predit_hit(){
+    Point3f predit;
     if (!armor_list.empty()){
-        kalman_filter.correct(armor_list[0]);
+        kalman_filter.update(armor_list[0].pose.position);
         circle(img_result, armor_list[0].center, 3, Scalar(200, 200, 200), -1);
     } else {
-        if (kalman_filter.isTracking())
-            kalman_filter.predictWhenLost();
+        if (kalman_filter.isInitialized())
+            kalman_filter.update_lost();
     }
-    predit = kalman_filter.predictSteps(int(armor_list[0].predit_time * FPS));
+
+    if (kalman_filter.isInitialized()){
+        predit = kalman_filter.predictFuture(int(armor_list[0].predit_time * FPS));
+        float pitch = get_hit_angle(V, sqrt(predit.x * predit.x + predit.y * predit.y), predit.z, 9.8);
+
+        float raw = atan2(predit.x, predit.y);
+
+        RCLCPP_INFO(this->get_logger(), "pitch: %f  raw: %f", pitch, raw);
+        RCLCPP_INFO(this->get_logger(), "predit point x: %f  y: %f z: %f", predit.x, predit.y, predit.z);
+    }
 
     // line(img_result, Point2f(0, predit.y), Point2f(639, predit.y), Scalar(0, 0, 0), 1);
     // line(img_result, Point2f(predit.x, 0), Point2f(predit.x, 639), Scalar(0, 0, 0), 1);
-    circle(img_result, predit, 6, Scalar(0, 255, 0), 2);
+    // circle(img_result, predit, 6, Scalar(0, 255, 0), 2);
 }
 
 void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){

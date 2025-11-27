@@ -41,6 +41,7 @@ public:
 private:
     int stage;
     ArmorTracker kalman_filter;
+    ArmorTracker_time kalman_filter_time;
 
     std::vector<cv::Mat> num_imgs; 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr Image_sub;

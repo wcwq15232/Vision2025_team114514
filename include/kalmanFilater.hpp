@@ -23,4 +23,19 @@ private:
     bool initialized_;
 };
 
+class ArmorTracker_time {
+public:
+    ArmorTracker_time();
+    void update(double timestamp, const cv::Point3f& measurement);
+    cv::Point3f predictFuture(float dt_seconds) const;
+    cv::Point3f getCurrentEstimate() const;
+    bool isInitialized() const;
+
+private:
+    bool initialized_ = false;
+    double last_timestamp_ = 0.0;
+
+    cv::KalmanFilter kf_;
+};
+
 #endif

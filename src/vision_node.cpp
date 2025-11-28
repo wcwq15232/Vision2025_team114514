@@ -1,7 +1,3 @@
-#include <cmath>
-#include <cassert>
-#include <memory>
-
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -15,11 +11,6 @@
 #include <referee_pkg/msg/multi_object.hpp>
 #include <referee_pkg/msg/object.hpp>
 #include "referee_pkg/srv/hit_armor.hpp"
-
-#include <vector>
-#include <string>
-#include <deque>
-#include <map>
 
 #include "basic_types.hpp"
 
@@ -155,18 +146,7 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     predit_hit();
 
     // 物体跟踪，绘制ID
-    {
-        int i = 0;
-        for (auto &trace : traceList) {
-            trace.match_and_update(currentDetections[i]);
-            for (const auto & centroid : trace.active_tracks) {
-                TrackedObject tracked_object = centroid.second;
-                putText(img_result, trace.class_name + "_ID: " + to_string(tracked_object.id), tracked_object.predict(), FONT_HERSHEY_COMPLEX, 1, Scalar(0, 0, 255), 2);
-            }
-            currentDetections[i].clear();
-            i++;
-        }
-    }
+    drawTrackObjectID();
 
     // 展示结果图这一块
     showResult();
@@ -670,6 +650,19 @@ void TestNode::showResult(){
     imshow("Detection Result", result_x2);
 
     waitKey(1);
+}
+
+void TestNode::drawTrackObjectID() {
+    int i = 0;
+    for (auto &trace : traceList) {
+        trace.match_and_update(currentDetections[i]);
+        for (const auto & centroid : trace.active_tracks) {
+            TrackedObject tracked_object = centroid.second;
+            putText(img_result, trace.class_name + "_ID: " + to_string(tracked_object.id), tracked_object.predict(), FONT_HERSHEY_COMPLEX, 1, Scalar(0, 0, 255), 2);
+        }
+        currentDetections[i].clear();
+        i++;
+    }
 }
 
 int main(int argc, char **argv){

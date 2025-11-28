@@ -1,32 +1,11 @@
 #ifndef TRACE
 #define TRACE
 
-// #include <opencv2/opencv.hpp>
-// #include <vector>
-//
-//
-// class Trace {
-// public:
-//     explicit Trace(int maxDisappeared = 50);
-//
-//     std::map<int, cv::Point> update(std::vector<cv::Point> centroids);
-//
-// private:
-//     void register_(const cv::Point& centroid);
-//     void deregister(int objectID);
-//
-//     int nextObjectID = 0;
-//     std::map<int, cv::Point> objects;
-//     std::map<int, int> disappeared;
-//     int maxDisappeared;
-// };
-
 #include <opencv2/core.hpp>
 #include <opencv2/video/tracking.hpp> // 包含 KalmanFilter
 #include <vector>
 #include <map>
 #include <cmath>
-#include <tuple>
 #include <algorithm>
 #include <iostream>
 
@@ -36,9 +15,6 @@ using namespace cv;
 // 匈牙利算法
 // 匈牙利算法/Munkres的核心步骤标记
 enum { UNMARKED, STARRED, PRIMED };
-// =========================================================================
-// HungarianAlgorithm Class Implementation (Simplified)
-// =========================================================================
 
 class HungarianAlgorithm {
 private:
@@ -255,30 +231,24 @@ public:
         int original_cols = cost_data[0].size();
         int dim = max(original_rows, original_cols);
 
-        // 1. 填充为方阵 (如果不是)
         std::vector<std::vector<double>> cost_matrix = cost_data;
         if (original_rows != original_cols) {
             cost_matrix.resize(dim, std::vector<double>(dim, 0.0));
-            // 用 0 填充，但为了不影响匹配，实际上应该填充一个不会被选中的值（例如 0，如果原始代价 > 0）
-            // 在实际MOT中，通常直接处理非方阵或填充高代价。这里我们依赖 Step 1/6 的逻辑。
         }
 
-        // 2. 核心变量
-        std::vector<int> row_mask(dim);          // 行覆盖状态 (0: 未覆盖, 1: 覆盖)
-        std::vector<int> col_mask(dim);          // 列覆盖状态 (0: 未覆盖, 1: 覆盖)
-        std::vector<std::pair<int, int>> star_zeros;   // Star zero 列表
-        std::vector<std::pair<int, int>> prime_zeros;  // Prime zero 列表
+        std::vector<int> row_mask(dim);
+        std::vector<int> col_mask(dim);
+        std::vector<std::pair<int, int>> star_zeros;
+        std::vector<std::pair<int, int>> prime_zeros;
 
-        // 3. 算法主循环
-        step1(cost_matrix); // Step 1: 行减去最小值
-        step2(cost_matrix, row_mask, col_mask, star_zeros); // Step 2: 初始星标 (Star zeros)
+        step1(cost_matrix);
+        step2(cost_matrix, row_mask, col_mask, star_zeros);
 
-        while (!step3(dim, star_zeros, col_mask)) { // Step 3: 检查覆盖的列数
-            step4(cost_matrix, row_mask, col_mask, star_zeros, prime_zeros); // Step 4/5: 寻找 Prime/增广路径
-            step6(cost_matrix, row_mask, col_mask); // Step 6: 调整矩阵
+        while (!step3(dim, star_zeros, col_mask)) {
+            step4(cost_matrix, row_mask, col_mask, star_zeros, prime_zeros);
+            step6(cost_matrix, row_mask, col_mask);
         }
 
-        // 4. 提取结果
         assignment.assign(original_rows, -1);
         double total_cost = 0.0;
 
@@ -288,7 +258,6 @@ public:
 
             if (r < original_rows && c < original_cols) {
                 assignment[r] = c;
-                // 注意：总代价应该使用原始的 cost_data 计算！
                 total_cost += cost_data[r][c];
             }
         }
@@ -306,51 +275,33 @@ struct TrackedObject {
 
     // 初始化卡尔曼滤波器
     TrackedObject(int track_id, const Point2f& initial_pos) : id(track_id) {
-        // 1. 定义状态和测量维度
-        // 状态向量 (State): [x, y, vx, vy]T (位置和速度) -> 4 维
-        // 测量向量 (Measurement): [x, y]T (观测到的位置) -> 2 维
 
         kf.init(4, 2, 0);
-
-        // 2. 状态转移矩阵 (Transition Matrix A): 匀速运动模型
-        // [1 0 1 0]
-        // [0 1 0 1]
-        // [0 0 1 0]
-        // [0 0 0 1]
         setIdentity(kf.transitionMatrix);
         kf.transitionMatrix.at<float>(0, 2) = 1.0f; // x += vx
         kf.transitionMatrix.at<float>(1, 3) = 1.0f; // y += vy
 
-        // 3. 测量矩阵 (Measurement Matrix H): 只观测位置
-        // [1 0 0 0]
-        // [0 1 0 0]
         kf.measurementMatrix.setTo(Scalar(0));
         kf.measurementMatrix.at<float>(0, 0) = 1.0f;
         kf.measurementMatrix.at<float>(1, 1) = 1.0f;
 
-        // 4. 过程噪声协方差矩阵 (Process Noise Cov Q): 假设速度变化有噪声
         setIdentity(kf.processNoiseCov, Scalar(1e-2));
 
-        // 5. 测量噪声协方差矩阵 (Measurement Noise Cov R): 假设观测有噪声
         setIdentity(kf.measurementNoiseCov, Scalar(1e-1));
 
-        // 6. 初始状态估计 (Posterior state X_k|k)
         kf.statePost.at<float>(0) = initial_pos.x;
         kf.statePost.at<float>(1) = initial_pos.y;
-        kf.statePost.at<float>(2) = 0.0f; // 初始速度设为0
+        kf.statePost.at<float>(2) = 0.0f;
         kf.statePost.at<float>(3) = 0.0f;
 
-        // 7. 初始误差协方差矩阵 (Error Cov P)
         setIdentity(kf.errorCovPost, Scalar(1.0f));
     }
 
-    // 获取预测位置
     Point2f predict() {
         Mat prediction = kf.predict();
         return Point2f(prediction.at<float>(0), prediction.at<float>(1));
     }
 
-    // 使用观测值校正
     void correct(const Point2f& observation) {
         Mat measurement(2, 1, CV_32F);
         measurement.at<float>(0) = observation.x;

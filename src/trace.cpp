@@ -1,167 +1,5 @@
 #include "trace.hpp"
 
-// #include <numeric>
-// #include <utility>
-//
-// Trace::Trace(const int maxDisappeared) {
-//     this->maxDisappeared = maxDisappeared;
-// }
-//
-// void Trace::register_(const cv::Point& centroid) {
-//     objects[nextObjectID] = centroid;
-//     disappeared[nextObjectID] = 0;
-//     nextObjectID++;
-// }
-//
-// void Trace::deregister(const int objectID) {
-//     objects.erase(objectID);
-//     disappeared.erase(objectID);
-// }
-//
-// std::map<int, cv::Point> Trace::update(std::vector<cv::Point> centroids) {
-//
-//     if (objects.empty()) {
-//         for (auto [fst, snd] : disappeared) {
-//             disappeared[fst]++;
-//             if (disappeared[fst] > maxDisappeared) {
-//                 deregister(fst);
-//                 return objects;
-//             }
-//         }
-//     }
-//
-//     auto inputCentroids = std::move(centroids);
-//
-//     if (objects.empty()) {
-//
-//         for (const auto & inputCentroid : inputCentroids) {
-//             register_(inputCentroid);
-//         }
-//
-//     } else {
-//
-//         auto objectIDs = std::vector<int>(objects.size());
-//         auto objectCentroids = std::vector<cv::Point>(objects.size());
-//         {
-//             int i = 0;
-//             for (const auto& [fst, snd] : objects) {
-//                 objectIDs[i] = fst;
-//                 objectCentroids[i] = snd;
-//                 i++;
-//             }
-//         }
-//
-//         auto D = std::vector<std::vector<int> >(objectCentroids.size());
-//
-//         for (int row = 0; row < D.size(); row++) {
-//
-//             D[row] = std::vector<int>(inputCentroids.size());
-//             for (int col = 0; col < D[row].size(); col++) {
-//                 D[row][col] = std::sqrt(
-//                     std::pow(objectCentroids[row].x + inputCentroids[col].x, 2)
-//                     + std::pow(objectCentroids[row].y + inputCentroids[col].y, 2));
-//             }
-//
-//         }
-//
-//         // 找行最小值的索引
-//         // 第一步：对每一行找到最小值的索引 (argmin(axis=1))
-//         std::vector<size_t> argmin_indices;
-//         argmin_indices.reserve(D.size());
-//
-//         for (const auto& row : D) {
-//             if (row.empty()) {
-//                 argmin_indices.push_back(0);
-//                 continue;
-//             }
-//
-//             auto min_it = std::min_element(row.begin(), row.end());
-//             size_t min_index = std::distance(row.begin(), min_it);
-//             argmin_indices.push_back(min_index);
-//         }
-//
-//         // 第二步：对argmin_indices进行argsort排序
-//         std::vector<size_t> rows(argmin_indices.size());
-//         std::iota(rows.begin(), rows.end(), 0);
-//
-//         // 根据argmin_indices的值对索引进行排序
-//         std::sort(rows.begin(), rows.end(),
-//                   [&](size_t i, size_t j) {
-//                       return argmin_indices[i] < argmin_indices[j];
-//                   });
-//
-//
-//         // 找列最小值的索引
-//         std::vector<size_t> cols;
-//         cols.reserve(rows.size());
-//
-//         for (size_t row_idx : rows) {
-//             if (row_idx >= D.size()) {
-//                 // 处理越界情况，可以根据需求调整
-//                 cols.push_back(0);
-//                 continue;
-//             }
-//
-//             const auto& row = D[row_idx];
-//             if (row.empty()) {
-//                 cols.push_back(0);
-//                 continue;
-//             }
-//
-//             auto min_it = std::min_element(row.begin(), row.end());
-//             size_t min_index = std::distance(row.begin(), min_it);
-//             cols.push_back(min_index);
-//         }
-//
-//
-//         // 记录已检查的行索引和列索引
-//         std::set<int> usedRows, usedCols;
-//         for (int row = 0; row < D.size(); row++) {
-//
-//             for (int col = 0; col < D[rows[row]].size(); col++) {
-//                 if (usedRows.find(rows[row]) != usedRows.end() || usedCols.find(cols[col]) != usedCols.end())
-//                     continue;
-//                 int objectID = objectIDs[rows[row]];
-//                 objects[objectID] = inputCentroids[cols[col]];
-//                 disappeared[objectID] = 0;
-//                 usedRows.insert(rows[row]);
-//                 usedCols.insert(cols[col]);
-//             }
-//
-//         }
-//
-//         // 计算尚未检查的行索引和列索引
-//         auto unused = [] (std::set<int> used, const int size) -> std::set<int> {
-//             std::set<int> unused_;
-//             for (int i = 0; i < size; i++) {
-//                 if (used.find(i) == used.end()) {
-//                     unused_.insert(i);
-//                 }
-//             }
-//             return unused_;
-//         };
-//         auto unusedRows = unused(usedRows, D.size());
-//         auto unusedCols = unused(usedCols, D[0].size());
-//
-//         // 若对象质心数大于等于输入质心数
-//         // 检查其中某些对象是否已消失
-//         if (D.size() >= D[0].size()) {
-//             for (auto row : unusedRows) {
-//                 int objectID = objectIDs[row];
-//                 disappeared[objectID]++;
-//                 if (disappeared[objectID] > maxDisappeared) {
-//                     deregister(objectID);
-//                 }
-//             }
-//         } else {
-//             for (auto col : unusedCols) {
-//                 register_(inputCentroids[col]);
-//             }
-//         }
-//     }
-//     return objects;
-// }
-
 using namespace cv;
 
 std::vector<std::pair<int, int>> Trace::solve_hungarian(const Mat& cost_matrix, float max_cost) {
@@ -172,8 +10,8 @@ std::vector<std::pair<int, int>> Trace::solve_hungarian(const Mat& cost_matrix, 
     int N_tracks = cost_matrix.rows;
     int N_detections = cost_matrix.cols;
 
-    // 1. 转换为 double 类型的 std::vector
-    std::vector<std::vector<double>> cost_data(N_tracks, std::vector<double>(N_detections));
+    // 转换为 double 类型的 std::vector
+    std::vector cost_data(N_tracks, std::vector<double>(N_detections));
 
     for (int i = 0; i < N_tracks; ++i) {
         for (int j = 0; j < N_detections; ++j) {
@@ -188,13 +26,13 @@ std::vector<std::pair<int, int>> Trace::solve_hungarian(const Mat& cost_matrix, 
         }
     }
 
-    // 2. 调用匈牙利算法求解器
+    // 调用匈牙利算法求解器
     HungarianAlgorithm solver;
     std::vector<int> assignment; // assignment[track_idx] = detection_idx
 
     solver.Solve(cost_data, assignment);
 
-    // 3. 结果转换
+    // 结果转换
     std::vector<std::pair<int, int>> matches;
 
     for (int i = 0; i < N_tracks; ++i) {
@@ -264,7 +102,7 @@ void Trace::match_and_update(const std::vector<Point2f>& current_detections) {
                 pair.second.consecutive_misses++;
             }
         }
-        // 清理消失的
+        // 清理消失的点
         std::vector<int> tracks_to_remove;
         for (const auto& pair : active_tracks) {
             if (pair.second.consecutive_misses > MAX_MISSES) {
@@ -277,16 +115,14 @@ void Trace::match_and_update(const std::vector<Point2f>& current_detections) {
         return;
     }
 
-    // 假设调用匈牙利算法求解器
-    // 实际应用中，您需要引入或实现一个匈牙利算法库
     // 这里的返回值是一个包含 (track_index, detection_index) 的匹配对列表
     std::vector<std::pair<int, int>> matches = solve_hungarian(cost_matrix, MAX_DISTANCE_THRESHOLD);
 
-    // 3. 标记匹配状态
+    // 标记匹配状态
     std::vector matched_track(track_ids.size(), false);
     std::vector matched_detection(current_detections.size(), false);
 
-    // 4. 更新匹配成功的跟踪目标
+    // 更新匹配成功的跟踪目标
     for (const auto& p : matches) {
         int track_idx = p.first;
         int det_idx = p.second;
@@ -300,7 +136,7 @@ void Trace::match_and_update(const std::vector<Point2f>& current_detections) {
         matched_detection[det_idx] = true;
     }
 
-    // 5. 处理未匹配的跟踪目标 (目标消失或遮挡)
+    // 处理未匹配的跟踪目标 (目标消失或遮挡)
     std::vector<int> tracks_to_remove;
     for (size_t i = 0; i < track_ids.size(); ++i) {
         if (!matched_track[i]) {
@@ -320,7 +156,7 @@ void Trace::match_and_update(const std::vector<Point2f>& current_detections) {
         active_tracks.erase(id);
     }
 
-    // 6. 处理未匹配的检测点 (新增目标)
+    // 处理未匹配的检测点 (新增目标)
     for (size_t i = 0; i < current_detections.size(); ++i) {
         if (!matched_detection[i]) {
             // 新建跟踪，并初始化卡尔曼滤波器

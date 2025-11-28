@@ -1,0 +1,14 @@
+{
+    "RaceStage0": {
+        "average_numdetecterror": 0.108,
+        "average_orientationerror": 1.168,
+        "fps": 45,
+        "max_numdetecterror": 0.108,
+        "max_orientationerror": 1.202,
+        "run_id": "f9d9c31a-1c0f-4f6f-88e1-5837da41b352",
+        "score": 0.0,
+        "target_type": "rect",
+        "timestamp": "2025-11-28T21:59:23Z"
+    },
+    "team_name": "组一辈子乐队"
+}

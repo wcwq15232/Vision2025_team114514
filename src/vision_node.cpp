@@ -37,7 +37,10 @@ using namespace cv;
 int max_history_length = 20;
 int abandon_count = 20;
 string NUMS_PATH = "install/team_challenge/share/team_challenge/nums/";
+
 double V = 15;
+// 速度设置 ros2 param set /TestNode V var    var为速度*10
+// Armor armor_tmp_test;
 
 TestNode::TestNode(string name) : Node(name){
     RCLCPP_INFO(this->get_logger(), "Initializing TestNode");
@@ -62,7 +65,9 @@ TestNode::TestNode(string name) : Node(name){
     for (int i = 0; i < OBJECT_CLASS_COUNT; ++i) {
         traceList.emplace_back(i);
     }
-    kalman_filter = ArmorKalmanFilter(8);
+    kalman_filter = ArmorTracker(FPS, 10);
+
+    this->declare_parameter("V", 10);
 }
 
 TestNode::~TestNode() { destroyWindow("Detection Result"); }
@@ -75,7 +80,13 @@ void TestNode::calculateStableSpherePoints(Sphere &sphere){
 }
 
 void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
+    V = this->get_parameter("V").as_int() / 10.0f;
+
     cv_bridge::CvImagePtr cv_ptr;
+
+    // if (stage == 5)
+    //     return;
+
 
     if (msg->encoding == "rgb8" || msg->encoding == "R8G8B8"){
         Mat image(msg->height, msg->width, CV_8UC3,
@@ -141,7 +152,7 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     getArmorPose();
 
     // thread_.join();
-    draw_predit_points();
+    predit_hit();
 
     // 物体跟踪，绘制ID
     {
@@ -168,20 +179,34 @@ void TestNode::callback_stage_change(referee_pkg::msg::RaceStage::SharedPtr msg)
 }
 
 void TestNode::callback_hit_srv(referee_pkg::srv::HitArmor_Request::SharedPtr request, referee_pkg::srv::HitArmor_Response::SharedPtr response) {
+    // TODO 当前此函数不知道具体任务，需要等到比赛写
+    
+    RCLCPP_INFO(this->get_logger(), "receive srv");
+    RCLCPP_INFO(this->get_logger(), "time %f", request->header.stamp.sec + request->header.stamp.nanosec * 1e-9);
+    
     vector<Point2f> points(4);
 
     for (int i = 0; i < 4; ++i){
         points[i].x = request->modelpoint[i].x;
-        points[i].y = request->modelpoint[i].y;
+        points[i].y = request->modelpoint[i].z;
+        RCLCPP_INFO(this->get_logger(), "Point %d   x: %f  y: %f", i + 1, request->modelpoint[i].x, request->modelpoint[i].z);
+
     }
     
     PoseResult result = poseCalculator.getPose(points);
     Point3f &tmp = result.position;
+    RCLCPP_INFO(this->get_logger(), "x: %f  y: %f  z: %f", tmp.x, tmp.y, tmp.z);
 
-    // TODO 卡尔曼滤波做预测 TODO
-    response->yaw = result.yaw;
-    response->pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, request->g);
-    response->roll = 0;
+    // response->yaw = result.yaw;
+    // response->pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, request->g);
+    // response->roll = 0;
+
+    // response->yaw = armor_tmp_test.yaw;
+    // response->pitch = armor_tmp_test.pitch;
+    // response->roll = 0;
+
+    RCLCPP_INFO(this->get_logger(), "y: %f  p: %f  r: %f", response->yaw, response->pitch, response->roll);
+
 }
 
 
@@ -371,7 +396,6 @@ void TestNode::getLights(vector<vector<Point>> &contours)
         // putText(img_result , to_string(tmp.angle), tmp.center, FONT_HERSHEY_SIMPLEX, 1.5, Scalar(0, 255, 0), 2);
         // putText(img_result , to_string(int(tmp.size.height)), tmp.center, FONT_HERSHEY_SIMPLEX, 1.5, Scalar(0, 255, 0), 2);
         // putText(img_result , to_string(int(tmp.angle)) + " " + to_string(tmp.size.height / tmp.size.width), tmp.center, FONT_HERSHEY_SIMPLEX, 1.5, Scalar(0, 0, 0), 2);
-
     }
 }
 
@@ -528,14 +552,22 @@ int TestNode::matchNum(Mat &num_img){
 }
 
 void TestNode::getArmorPose(){
+    // 仅debug，比赛时相关代码逻辑再srv回调中实现
     for (Armor& armor: armor_list){
         armor.pose = poseCalculator.getPose(armor.points);
-        // TODO 卡尔曼滤波做预测 TODO
+
         Point3f &tmp = armor.pose.position;
         float pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, 9.8);
         if (pitch == NAN)
             pitch = -1;
         armor.predit_time = tmp.y / (V * cos(pitch));
+
+
+        armor.yaw = armor.pose.yaw;
+        armor.pitch = pitch;
+        armor.roll = 0;
+        // armor_tmp_test = Armor(armor);
+
         // RCLCPP_INFO(this->get_logger(), "计算击打角度 yaw:%f pitch: %f roll:0", armor.pose.yaw, pitch);
         putText(img_result, "dis:" + to_string(armor.pose.distance) + "m", Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
         putText(img_result, "x:" + to_string(armor.pose.position.x), Point2f(armor.center.x + armor.width / 2 + 10, armor.center.y + 20), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255, 20, 20));
@@ -546,20 +578,29 @@ void TestNode::getArmorPose(){
     }
 }
 
-void TestNode::draw_predit_points(){
-    Point2f predit;
+void TestNode::predit_hit(){
+    Point3f predit;
     if (!armor_list.empty()){
-        kalman_filter.correct(armor_list[0]);
+        kalman_filter.update(armor_list[0].pose.position);
         circle(img_result, armor_list[0].center, 3, Scalar(200, 200, 200), -1);
     } else {
-        if (kalman_filter.isTracking())
-            kalman_filter.predictWhenLost();
+        if (kalman_filter.isInitialized())
+            kalman_filter.update_lost();
     }
-    predit = kalman_filter.predictSteps(int(armor_list[0].predit_time * FPS));
+
+    if (kalman_filter.isInitialized()){
+        predit = kalman_filter.predictFuture(int(armor_list[0].predit_time * FPS));
+        float pitch = get_hit_angle(V, sqrt(predit.x * predit.x + predit.y * predit.y), predit.z, 9.8);
+
+        float raw = atan2(predit.x, predit.y);
+
+        RCLCPP_INFO(this->get_logger(), "pitch: %f  raw: %f", pitch, raw);
+        RCLCPP_INFO(this->get_logger(), "predit point x: %f  y: %f z: %f", predit.x, predit.y, predit.z);
+    }
 
     // line(img_result, Point2f(0, predit.y), Point2f(639, predit.y), Scalar(0, 0, 0), 1);
     // line(img_result, Point2f(predit.x, 0), Point2f(predit.x, 639), Scalar(0, 0, 0), 1);
-    circle(img_result, predit, 6, Scalar(0, 255, 0), 2);
+    // circle(img_result, predit, 6, Scalar(0, 255, 0), 2);
 }
 
 void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){

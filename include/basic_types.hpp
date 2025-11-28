@@ -37,6 +37,9 @@ struct Armor {
     std::vector<cv::Point2f> points2;
     PoseResult pose;
     float predit_time;
+    float yaw;
+    float pitch;
+    float roll;
 };
 
 struct Light {

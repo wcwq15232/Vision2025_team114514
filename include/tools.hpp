@@ -106,11 +106,11 @@ inline double get_hit_angle(double v, double target_x, double target_y, double g
 
     const double discriminant = b * b - 4.0 * a * c;
 
-    std::cout << v << std::endl;
-    std::cout << target_x << std::endl;
-    std::cout << target_y << std::endl;
-    std::cout << g << std::endl;
-    std::cout << discriminant << std::endl;
+    // std::cout << v << std::endl;
+    // std::cout << target_x << std::endl;
+    // std::cout << target_y << std::endl;
+    // std::cout << g << std::endl;
+    // std::cout << discriminant << std::endl;
 
     if (discriminant < 0.0) {
         return std::numeric_limits<double>::quiet_NaN(); // 无解

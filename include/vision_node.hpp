@@ -40,7 +40,8 @@ public:
     ~TestNode();
 private:
     int stage;
-    ArmorKalmanFilter kalman_filter;
+    ArmorTracker kalman_filter;
+    ArmorTracker_time kalman_filter_time;
 
     std::vector<cv::Mat> num_imgs; 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr Image_sub;
@@ -67,12 +68,11 @@ private:
     void callback_hit_srv(referee_pkg::srv::HitArmor_Request::SharedPtr request, referee_pkg::srv::HitArmor_Response::SharedPtr response);
     void preprocess(cv::Mat &src, cv::Mat &result);
 
-
     void getSphere(std::vector<std::vector<cv::Point>> &contours);
     void calculateStableSpherePoints(Sphere &sphere);
 
     void getRect(std::vector<std::vector<cv::Point>> &contours);
-    void draw_predit_points();
+    void predit_hit();
 
     void getArmor(std::vector<std::vector<cv::Point>> &contours);
     void getLights(std::vector<std::vector<cv::Point>> &contours);

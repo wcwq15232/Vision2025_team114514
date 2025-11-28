@@ -1,7 +1,6 @@
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
 
-#include <vector>
 #include <string>
 #include <deque>
 
@@ -29,9 +28,9 @@ float FY = 554.383; // 焦距y
 float CX = 320.0f; // 主点x
 float CY = 320.0f; // 主点y
 
-cv::Mat kernel_3 = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
-cv::Mat kernel_5 = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
-cv::Mat kernel_7 = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(7, 7));
+Mat kernel_3 = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+Mat kernel_5 = getStructuringElement(MORPH_ELLIPSE, Size(5, 5));
+Mat kernel_7 = getStructuringElement(MORPH_ELLIPSE, Size(7, 7));
 
 class TestNode : public rclcpp::Node
 {
@@ -43,14 +42,14 @@ private:
     ArmorTracker kalman_filter;
     ArmorTracker_time kalman_filter_time;
 
-    std::vector<cv::Mat> num_imgs; 
+    std::vector<Mat> num_imgs;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr Image_sub;
     rclcpp::Publisher<referee_pkg::msg::MultiObject>::SharedPtr Target_pub;
     rclcpp::Subscription<referee_pkg::msg::RaceStage>::SharedPtr Stage_sub;
     rclcpp::Service<referee_pkg::srv::HitArmor>::SharedPtr Hit_srv;
 
-    cv::Mat src, hsv, img_result, rectMask, mask;
-    std::deque<cv::Point2f> rect_history_points {std::deque<cv::Point2f>(10)};
+    Mat src, hsv, img_result, rectMask, mask;
+    std::deque<Point2f> rect_history_points {std::deque<Point2f>(10)};
     int miss_count_rect;
 
     std::vector<Sphere> sphere_list;
@@ -66,21 +65,23 @@ private:
     void callback_camera(sensor_msgs::msg::Image::SharedPtr msg);
     void callback_stage_change(referee_pkg::msg::RaceStage::SharedPtr msg);
     void callback_hit_srv(referee_pkg::srv::HitArmor_Request::SharedPtr request, referee_pkg::srv::HitArmor_Response::SharedPtr response);
-    void preprocess(cv::Mat &src, cv::Mat &result);
+    void preprocess(Mat &src, Mat &result);
 
-    void getSphere(std::vector<std::vector<cv::Point>> &contours);
+    void getSphere(std::vector<std::vector<Point>> &contours);
     void calculateStableSpherePoints(Sphere &sphere);
 
-    void getRect(std::vector<std::vector<cv::Point>> &contours);
+    void getRect(std::vector<std::vector<Point>> &contours);
     void predit_hit();
 
-    void getArmor(std::vector<std::vector<cv::Point>> &contours);
-    void getLights(std::vector<std::vector<cv::Point>> &contours);
+    void getArmor(std::vector<std::vector<Point>> &contours);
+    void getLights(std::vector<std::vector<Point>> &contours);
     void matchLights();
-    void getNumberImg(Armor &armor, cv::Mat &num_img);
-    int matchNum(cv::Mat &num_img);
+    void getNumberImg(Armor &armor, Mat &num_img);
+    int matchNum(Mat &num_img);
     void getArmorPose();
 
     void sendResult(sensor_msgs::msg::Image::SharedPtr msg);
     void showResult();
+
+    void drawTrackObjectID();
 };

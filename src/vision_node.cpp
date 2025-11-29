@@ -17,6 +17,8 @@
 #include "vision_node.hpp"
 #include "tools.hpp"
 
+#include <set>
+
 #include "poseCalculator.hpp"
 #include "kalmanFilater.hpp"
 #include "trace.hpp"
@@ -142,8 +144,13 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     threshold(mask, mask, 75, 255, THRESH_BINARY);
     dilate(mask, mask, kernel_3);
 
-    getCircle();
 
+    cout << stage << endl;
+    if (stage == 1)
+        getCircle();
+
+    if (stage == 2)
+        getArrow();
     // imshow("a", mask);
 
     // findContours(mask, red_contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
@@ -263,7 +270,6 @@ void TestNode::getSphere(vector<vector<Point>> &contours){
 
 void TestNode::getCircle()
 {   
-    circle_list.clear();
     vector<vector<Point>> contours;
     vector<Vec4i> hierarchy;
 
@@ -317,6 +323,91 @@ void TestNode::getCircle()
         }
 
     }
+}
+
+void TestNode::getArrow()
+{   
+    vector<vector<Point>> contours;
+    vector<Vec4i> hierarchy;
+
+    imshow("MASK", mask);
+    findContours(mask, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    vector<vector<Point>> conPoly(contours.size());
+    
+    for (int i = 0; i < contours.size(); ++i) {
+        bool bool_list[6] {0,0,0,0,0,0};
+        bool bool_list2[6] {0,0,0,0,0,0};
+
+        float peri = cv::arcLength(contours[i], true);
+        approxPolyDP(contours[i], conPoly[i], 0.03 * peri, true);
+        // drawContours(img_result, conPoly, i, Scalar(0, 0, 0), 2);
+        int area = contourArea(contours[i]);
+        if (area < 30)
+            continue;
+
+        // cout << conPoly[i].size() << endl;
+        int n = conPoly[i].size();
+
+        vector<Point> & points_c = conPoly[i];
+
+        for (int j = 0; j < n - 1; ++j){
+            for (int m = j + 1; m < n; ++m){
+                double dis = norm(points_c[j] - points_c[m]);
+                // cout << endl << dis << endl << endl;
+                if (dis < 18){
+                    bool_list[m] = true;
+                    bool_list[j] = true;
+                    // cout << j << "  " << m << endl;
+                }
+                if (dis < 8){
+                    bool_list2[m] = true;
+                    bool_list2[j] = true;
+                }
+            }
+        }
+
+        int index[3];
+        int top, button;
+        int left, right;
+        int count = 0;
+
+        for (int j = 0; j < 6; ++j){
+            if (bool_list[j]){
+                index[count] = j;
+                ++count;
+                // cout << j << endl;
+
+                if (!bool_list2[j])
+                    top = j;
+            }
+        }
+
+        button = (top + 3) % 6;
+
+        left = (top + 5) % 6;
+        right = (top + 1) % 6;
+
+        // cout << endl << endl;
+        // cout << top << endl;
+        // cout << button << endl;
+        // cout << left << endl;
+        // cout << right << endl;
+
+        Point vec = (points_c[left] - points_c[right]) / 2;
+        Arrow arrow {
+            {points_c[top] - vec,
+            points_c[top] + vec,
+            points_c[button] + vec,
+            points_c[button] - vec}
+        };
+
+        vector<Point> tmp_points {points_c[top], points_c[left], points_c[button], points_c[right]};
+        // draw4points(tmp_points, img_result);
+        draw4points(arrow.points, img_result);
+
+        arrow_list.push_back(arrow);
+    }
+
 }
 
 void TestNode::getRect(vector<vector<Point>> &contours){
@@ -652,7 +743,7 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
     try{
         referee_pkg::msg::MultiObject msg_object;
         msg_object.header = msg->header;
-        msg_object.num_objects = sphere_list.size() + rect_list.size() + armor_list.size() + circle_list.size() * 2;
+        msg_object.num_objects = sphere_list.size() + rect_list.size() + armor_list.size() + circle_list.size() * 2 + arrow_list.size();
 
         // for (const Sphere& tmp_sphere: sphere_list){
         //     referee_pkg::msg::Object obj;
@@ -692,7 +783,7 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
         //     }
         //     msg_object.objects.push_back(obj);
         // }
-
+        
         for (const Circle& tmp_circle: circle_list){
             referee_pkg::msg::Object obj1;
             obj1.target_type = "Ring_red";
@@ -720,12 +811,29 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
             msg_object.objects.push_back(obj2);
         }
 
+        for (const Arrow& tmp_arrow: arrow_list){
+            referee_pkg::msg::Object obj;
+            obj.target_type = "arrow";
+            for (int j = 0; j < 4; j++){
+                geometry_msgs::msg::Point corner;
+                corner.x = tmp_arrow.points[j].x;
+                corner.y = tmp_arrow.points[j].y;
+                corner.z = 0.0;
+                obj.corners.push_back(corner);
+            }
+            msg_object.objects.push_back(obj);
+        }
+
         Target_pub->publish(msg_object);
         
         // RCLCPP_INFO(this->get_logger(), "Published %zu sphere targets", sphere_list.size());        
         // RCLCPP_INFO(this->get_logger(), "Published %zu rect targets", rect_list.size());        
         // RCLCPP_INFO(this->get_logger(), "Published %zu armor targets", armor_list.size());
         RCLCPP_INFO(this->get_logger(), "Published %zu circle targets", circle_list.size());
+        RCLCPP_INFO(this->get_logger(), "Published %zu arrow targets", arrow_list.size());
+
+        circle_list.clear();
+        arrow_list.clear();
     }
     catch (const cv_bridge::Exception &e){
         RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());

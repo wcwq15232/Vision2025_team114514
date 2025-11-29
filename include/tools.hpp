@@ -75,6 +75,25 @@ void draw4points(const std::vector<cv::Point2f> &points, cv::Mat &result_image){
     }
 }
 
+void draw4points(const std::vector<cv::Point> &points, cv::Mat &result_image){
+    for (int j = 0; j < 4; j++)
+    {
+        cv::circle(result_image, points[j], 6, point_colors[j], -1);
+        cv::circle(result_image, points[j], 6, cv::Scalar(0, 0, 0), 2);
+
+        // 标注序号
+        std::string point_text = std::to_string(j + 1);
+        cv::putText(
+            result_image, point_text,
+            cv::Point(points[j].x + 10, points[j].y - 10),
+            cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 3);
+        cv::putText(
+            result_image, point_text,
+            cv::Point(points[j].x + 10, points[j].y - 10),
+            cv::FONT_HERSHEY_SIMPLEX, 0.6, point_colors[j], 2);
+    }
+}
+
 inline void connectPoints(const std::deque<cv::Point2f> &points, cv::Mat &result_image){
     for (auto it = points.begin(); it != points.end() - 1; ++it)
         cv::line(result_image, *it, *(it + 1), cv::Scalar(10, 0, 10));

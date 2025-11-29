@@ -20,6 +20,12 @@
 // };
 // "rect_move"
 
+struct Arrow
+{
+    std::vector<cv::Point> points;
+};
+
+
 struct PoseResult {
     cv::Point3f position;  // 位置
     cv::Vec3d rotation;       // 旋转向量

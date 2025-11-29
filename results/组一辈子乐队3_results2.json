@@ -1,0 +1,14 @@
+{
+    "RaceStage2": {
+        "average_directerror": 1.942,
+        "average_positionerror": 0.307,
+        "fps": 44,
+        "max_directerror": 3.13,
+        "max_positionerror": 0.97,
+        "run_id": "bd9bd516-64b6-4373-89ec-7e8db9fd8e2d",
+        "score": 14.0,
+        "target_type": "arrow",
+        "team_name": "组一辈子乐队3",
+        "timestamp": "2025-11-29T13:39:05Z"
+    }
+}

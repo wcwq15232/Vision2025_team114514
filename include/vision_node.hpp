@@ -41,7 +41,7 @@ public:
     TestNode(std::string name);
     ~TestNode();
 private:
-    int stage;
+    int stage = 2;
     ArmorTracker kalman_filter;
     ArmorTracker_time kalman_filter_time;
 
@@ -60,6 +60,7 @@ private:
     std::vector<Light>  light_list;
     std::vector<Armor>  armor_list;
     std::vector<Circle> circle_list;
+    std::vector<Arrow> arrow_list;
 
     PoseCalculator poseCalculator {FX, FY, CX, CY, ARMOR_WIDTH, ARMOR_HEIGHT};
 
@@ -72,13 +73,14 @@ private:
     void preprocess(Mat &src, Mat &result);
 
     void getSphere(std::vector<std::vector<Point>> &contours);
-    void getCircle();
     void calculateStableSpherePoints(Sphere &sphere);
     void calculateStableSpherePoints(cv::Point2f & center, float &radius, std::vector<cv::Point2f> &points);
 
     void getRect(std::vector<std::vector<Point>> &contours);
     void predit_hit();
 
+    void getCircle();
+    void getArrow();
     void getArmor(std::vector<std::vector<Point>> &contours);
     void getLights(std::vector<std::vector<Point>> &contours);
     void matchLights();

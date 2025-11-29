@@ -7,8 +7,6 @@
 #include <vector>
 #include <string>
 
-#include "poseCalculator.hpp"Copilot: Disable Completions   
-
 // 本文件定义程序所需的  存储各类目标状态的结构体
 
 // std::vector<std::string> obj_names {
@@ -22,6 +20,22 @@
 // };
 // "rect_move"
 
+struct PoseResult {
+    cv::Point3f position;  // 位置
+    cv::Vec3d rotation;       // 旋转向量
+    double distance;          // 距离
+    bool valid;
+    float yaw;
+    float pitch;
+};
+
+struct Circle{
+    cv::Point2f center;
+    float radius1 = 0;
+    float radius2 = 0;
+    std::vector<cv::Point2f> points1;
+    std::vector<cv::Point2f> points2;
+};
 
 struct Sphere {
     cv::Point2f center;

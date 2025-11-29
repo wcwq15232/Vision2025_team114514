@@ -4,15 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <iostream>
-
-struct PoseResult {
-    cv::Point3f position;  // 位置
-    cv::Vec3d rotation;       // 旋转向量
-    double distance;          // 距离
-    bool valid;
-    float yaw;
-    float pitch;
-};
+#include <basic_types.hpp>
 
 class PoseCalculator {
 private:

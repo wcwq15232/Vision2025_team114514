@@ -143,4 +143,19 @@ inline double get_hit_angle(double v, double target_x, double target_y, double g
     }
 }
 
+void draw_circle(cv::Point2f center, float radius, std::vector<Point2f> & points, cv::Mat img){
+    circle(img, center, static_cast<int>(radius), Scalar(0, 255, 0), 2); // 绿色圆圈
+    circle(img, center, 3, cv::Scalar(0, 0, 255), -1);                       // 红色圆心
+
+    // 绘制球体上的四个点
+    std::vector<std::string> point_names = {"左", "下", "右", "上"};
+    draw4points(points, img);
+
+    // 显示半径信息
+    std::string info_text = "R:" + std::to_string((int)radius);
+    putText(
+        img, info_text, cv::Point(center.x - 15, center.y + 5),
+        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+}
+
 #endif

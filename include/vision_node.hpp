@@ -19,10 +19,13 @@
 
 constexpr int OBJECT_CLASS_COUNT = 7;
 
+
 float ARMOR_WIDTH = 0.705f;
 float ARMOR_HEIGHT = 0.230f;
 int FPS = 90;
 
+int width = 1280;
+int height = 1280;
 float FX = 554.383f; // 焦距x
 float FY = 554.383; // 焦距y
 float CX = 320.0f; // 主点x
@@ -56,6 +59,7 @@ private:
     std::vector<Rect_s> rect_list;
     std::vector<Light>  light_list;
     std::vector<Armor>  armor_list;
+    std::vector<Circle> circle_list;
 
     PoseCalculator poseCalculator {FX, FY, CX, CY, ARMOR_WIDTH, ARMOR_HEIGHT};
 
@@ -68,7 +72,9 @@ private:
     void preprocess(Mat &src, Mat &result);
 
     void getSphere(std::vector<std::vector<Point>> &contours);
+    void getCircle();
     void calculateStableSpherePoints(Sphere &sphere);
+    void calculateStableSpherePoints(cv::Point2f & center, float &radius, std::vector<cv::Point2f> &points);
 
     void getRect(std::vector<std::vector<Point>> &contours);
     void predit_hit();

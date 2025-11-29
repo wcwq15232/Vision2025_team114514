@@ -16,6 +16,19 @@ ros2 launch referee_pkg referee_pkg_launch.xml \
     StageSelect:=0 \
     ModeSelect:=0
 
+ros2 launch target_model_pkg target_action.launch.py \
+    model:=src/target_model_pkg/urdf/arrow/arrow.sdf \
+    model_name:=arrow \
+    x:=0.0 \
+    y:=5.0 \
+    z:=2.0
+
+ros2 launch target_model_pkg target_action.launch.py \
+    model:=src/target_model_pkg/urdf/circle/circle.sdf \
+    model_name:=circle \
+    x:=0.0 \
+    y:=5.0 \
+    z:=2.0
 
 以下为模型插入
 球

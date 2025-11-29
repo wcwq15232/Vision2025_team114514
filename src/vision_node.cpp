@@ -72,6 +72,13 @@ void TestNode::calculateStableSpherePoints(Sphere &sphere){
     sphere.points.push_back(Point2f(sphere.center.x, sphere.center.y - sphere.radius)); // 上点 (4)
 }
 
+void TestNode::calculateStableSpherePoints(Point2f & center, float &radius, vector<Point2f> &points){
+    points.push_back(Point2f(center.x - radius, center.y)); // 左点 (1)
+    points.push_back(Point2f(center.x, center.y + radius)); // 下点 (2)
+    points.push_back(Point2f(center.x + radius, center.y)); // 右点 (3)
+    points.push_back(Point2f(center.x, center.y - radius)); // 上点 (4)
+}
+
 void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     V = this->get_parameter("V").as_int() / 10.0f;
 
@@ -102,18 +109,18 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
 
     // 创建结果图像
     img_result = src.clone();
-    cvtColor(src, hsv, COLOR_BGR2HSV);
+    // cvtColor(src, hsv, COLOR_BGR2HSV);
 
     // 找矩形
 
     // std::thread thread_([this] () -> void {
-        vector<vector<Point>> rect_contours;
+        // vector<vector<Point>> rect_contours;
 
-        inRange(hsv, Scalar(75, 140, 215), Scalar(100, 255, 255), rectMask);
-        morphologyEx(rectMask, rectMask, MORPH_CLOSE, kernel_3);
-        morphologyEx(rectMask, rectMask, MORPH_OPEN, kernel_3);
-        findContours(rectMask, rect_contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-        getRect(rect_contours);
+        // inRange(hsv, Scalar(75, 140, 215), Scalar(100, 255, 255), rectMask);
+        // morphologyEx(rectMask, rectMask, MORPH_CLOSE, kernel_3);
+        // morphologyEx(rectMask, rectMask, MORPH_OPEN, kernel_3);
+        // findContours(rectMask, rect_contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+        // getRect(rect_contours);
     // });
 
     
@@ -134,18 +141,21 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
 
     threshold(mask, mask, 75, 255, THRESH_BINARY);
     dilate(mask, mask, kernel_3);
+
+    getCircle();
+
     // imshow("a", mask);
 
-    findContours(mask, red_contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-    getSphere(red_contours);
-    getArmor(red_contours);
-    getArmorPose();
+    // findContours(mask, red_contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    // getSphere(red_contours);
+    // getArmor(red_contours);
+    // getArmorPose();
 
     // thread_.join();
-    predit_hit();
+    // predit_hit();
 
     // 物体跟踪，绘制ID
-    drawTrackObjectID();
+    // drawTrackObjectID();
 
     showResult();
     sendResult(msg);
@@ -248,6 +258,64 @@ void TestNode::getSphere(vector<vector<Point>> &contours){
                             tmp_sphere.points[j].x, tmp_sphere.points[j].y);
             }
         }
+    }
+}
+
+void TestNode::getCircle()
+{   
+    circle_list.clear();
+    vector<vector<Point>> contours;
+    vector<Vec4i> hierarchy;
+
+    imshow("MASK", mask);
+    findContours(mask, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+
+    cout << endl << endl;
+    for (int i = 0; i < hierarchy.size(); ++i){
+        // cout << hierarchy[i][0] << "  " << hierarchy[i][1] << "  " << hierarchy[i][2] << "  " << hierarchy[i][3] << endl;
+        if (hierarchy[i][2] == -1) continue;
+
+        int inner = hierarchy[i][2];
+        cout << inner << endl;
+
+        double area1 = contourArea(contours[i]);
+
+        double area2 = contourArea(contours[inner]);
+        if (area1 < 250 || area2 < 150)
+            continue;
+
+        Point2f center1, center2;
+        float radius1 = 0, radius2 = 0;
+
+        minEnclosingCircle(contours[i], center1, radius1);
+        minEnclosingCircle(contours[inner], center2, radius2);
+
+        // 计算圆形度
+        double perimeter1 = arcLength(contours[i], true);
+        double circularity1 = 4 * CV_PI * area1 / (perimeter1 * perimeter1);
+        double perimeter2 = arcLength(contours[inner], true);
+        double circularity2 = 4 * CV_PI * area2 / (perimeter2 * perimeter2);
+        cout << circularity1 << endl;
+        cout << circularity2 << endl;
+
+
+        if (circularity1 > 0.7 && radius1 > 10 && radius1 < 200 && circularity2 > 0.7 && radius2 > 10 && radius2 < 200){
+            Circle circle_tmp;
+            circle_tmp.center = center1;
+            circle_tmp.radius1 = radius1;
+            circle_tmp.radius2 = radius2;
+            circle_tmp.points1 = vector<Point2f>();
+            circle_tmp.points2 = vector<Point2f>();
+
+            calculateStableSpherePoints(center1, radius1 ,circle_tmp.points1);
+            calculateStableSpherePoints(center2, radius2 ,circle_tmp.points2);
+
+            draw_circle(center1, radius1, circle_tmp.points1, img_result);
+            draw_circle(center2, radius2, circle_tmp.points2, img_result);
+
+            circle_list.push_back(circle_tmp);
+        }
+
     }
 }
 
@@ -584,52 +652,80 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
     try{
         referee_pkg::msg::MultiObject msg_object;
         msg_object.header = msg->header;
-        msg_object.num_objects = sphere_list.size() + rect_list.size() + armor_list.size();
+        msg_object.num_objects = sphere_list.size() + rect_list.size() + armor_list.size() + circle_list.size() * 2;
 
-        for (const Sphere& tmp_sphere: sphere_list){
-            referee_pkg::msg::Object obj;
-            obj.target_type = "sphere";
+        // for (const Sphere& tmp_sphere: sphere_list){
+        //     referee_pkg::msg::Object obj;
+        //     obj.target_type = "sphere";
+        //     for (int j = 0; j < 4; j++){
+        //         geometry_msgs::msg::Point corner;
+        //         corner.x = tmp_sphere.points[j].x;
+        //         corner.y = tmp_sphere.points[j].y;
+        //         corner.z = 0.0;
+        //         obj.corners.push_back(corner);
+        //     }
+        //     msg_object.objects.push_back(obj);
+        // }
+
+        // for (const Rect_s& tmp_rect: rect_list){
+        //     referee_pkg::msg::Object obj;
+        //     obj.target_type = "rect";
+        //     for (int j = 0; j < 4; j++){
+        //         geometry_msgs::msg::Point corner;
+        //         corner.x = tmp_rect.points[j].x;
+        //         corner.y = tmp_rect.points[j].y;
+        //         corner.z = 0.0;
+        //         obj.corners.push_back(corner);
+        //     }
+        //     msg_object.objects.push_back(obj);
+        // }
+
+        // for (const Armor& tmp_armor: armor_list){
+        //     referee_pkg::msg::Object obj;
+        //     obj.target_type = "armor_red_" + to_string(tmp_armor.number);
+        //     for (int j = 0; j < 4; j++){
+        //         geometry_msgs::msg::Point corner;
+        //         corner.x = tmp_armor.points[j].x;
+        //         corner.y = tmp_armor.points[j].y;
+        //         corner.z = 0.0;
+        //         obj.corners.push_back(corner);
+        //     }
+        //     msg_object.objects.push_back(obj);
+        // }
+
+        for (const Circle& tmp_circle: circle_list){
+            referee_pkg::msg::Object obj1;
+            obj1.target_type = "Ring_red";
             for (int j = 0; j < 4; j++){
                 geometry_msgs::msg::Point corner;
-                corner.x = tmp_sphere.points[j].x;
-                corner.y = tmp_sphere.points[j].y;
+                corner.x = tmp_circle.points1[j].x;
+                corner.y = tmp_circle.points1[j].y;
                 corner.z = 0.0;
-                obj.corners.push_back(corner);
-            }
-            msg_object.objects.push_back(obj);
-        }
+                obj1.corners.push_back(corner);
+                RCLCPP_INFO(this->get_logger(), "circle1 Point %d  (%f, %f)", j, corner.x, corner.y);
+            }   
+            msg_object.objects.push_back(obj1);
 
-        for (const Rect_s& tmp_rect: rect_list){
-            referee_pkg::msg::Object obj;
-            obj.target_type = "rect";
+
+            referee_pkg::msg::Object obj2;
+            obj2.target_type = "Ring_red";
             for (int j = 0; j < 4; j++){
                 geometry_msgs::msg::Point corner;
-                corner.x = tmp_rect.points[j].x;
-                corner.y = tmp_rect.points[j].y;
+                corner.x = tmp_circle.points2[j].x;
+                corner.y = tmp_circle.points2[j].y;
                 corner.z = 0.0;
-                obj.corners.push_back(corner);
+                obj2.corners.push_back(corner);
+                RCLCPP_INFO(this->get_logger(), "circle2 Point %d  (%f, %f)", j, corner.x, corner.y);
             }
-            msg_object.objects.push_back(obj);
-        }
-
-        for (const Armor& tmp_armor: armor_list){
-            referee_pkg::msg::Object obj;
-            obj.target_type = "armor_red_" + to_string(tmp_armor.number);
-            for (int j = 0; j < 4; j++){
-                geometry_msgs::msg::Point corner;
-                corner.x = tmp_armor.points[j].x;
-                corner.y = tmp_armor.points[j].y;
-                corner.z = 0.0;
-                obj.corners.push_back(corner);
-            }
-            msg_object.objects.push_back(obj);
+            msg_object.objects.push_back(obj2);
         }
 
         Target_pub->publish(msg_object);
         
-        RCLCPP_INFO(this->get_logger(), "Published %zu sphere targets", sphere_list.size());        
-        RCLCPP_INFO(this->get_logger(), "Published %zu rect targets", rect_list.size());        
-        RCLCPP_INFO(this->get_logger(), "Published %zu armor targets", armor_list.size());
+        // RCLCPP_INFO(this->get_logger(), "Published %zu sphere targets", sphere_list.size());        
+        // RCLCPP_INFO(this->get_logger(), "Published %zu rect targets", rect_list.size());        
+        // RCLCPP_INFO(this->get_logger(), "Published %zu armor targets", armor_list.size());
+        RCLCPP_INFO(this->get_logger(), "Published %zu circle targets", circle_list.size());
     }
     catch (const cv_bridge::Exception &e){
         RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
@@ -640,12 +736,7 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
 }
 
 void TestNode::showResult(){
-    // imshow("Detection Result", img_result);
-
-    Mat result_x2;  // 两倍大的显示方便看
-    resize(img_result, result_x2, Size(), 2, 2);
-    imshow("Detection Result", result_x2);
-
+    imshow("Detection Result", img_result);
     waitKey(1);
 }
 

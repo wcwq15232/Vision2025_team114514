@@ -22,14 +22,14 @@ constexpr int OBJECT_CLASS_COUNT = 7;
 
 float ARMOR_WIDTH = 0.705f;
 float ARMOR_HEIGHT = 0.230f;
-int FPS = 90;
+int FPS = 44;
 
 int width = 1280;
 int height = 1280;
-float FX = 554.383f; // 焦距x
-float FY = 554.383; // 焦距y
-float CX = 320.0f; // 主点x
-float CY = 320.0f; // 主点y
+float FX = 1108.383f; // 焦距x
+float FY = 1108.383; // 焦距y
+float CX = 640.0f; // 主点x
+float CY = 640.0f; // 主点y
 
 Mat kernel_3 = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
 Mat kernel_5 = getStructuringElement(MORPH_ELLIPSE, Size(5, 5));
@@ -41,7 +41,8 @@ public:
     TestNode(std::string name);
     ~TestNode();
 private:
-    int stage = 2;
+    int stage = 3;
+    int threshold_red = 180;
     ArmorTracker kalman_filter;
     ArmorTracker_time kalman_filter_time;
 

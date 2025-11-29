@@ -7,7 +7,9 @@
 #include <vector>
 #include <string>
 
-#include "poseCalculator.hpp"
+#include "poseCalculator.hpp"Copilot: Disable Completions   
+
+// 本文件定义程序所需的  存储各类目标状态的结构体
 
 // std::vector<std::string> obj_names {
 //     "sphere",
@@ -33,20 +35,20 @@ struct Armor {
     float angel;
     float width;
     float height;
-    std::vector<cv::Point2f> points;
-    std::vector<cv::Point2f> points2;
-    PoseResult pose;
-    float predit_time;
-    float yaw;
-    float pitch;
-    float roll;
+    std::vector<cv::Point2f> points;  // 要发送的4个点
+    std::vector<cv::Point2f> points2; // 该组点用于提取数字
+    PoseResult pose;  // pnp解算结果
+    float predit_time;  // 提前量(s)
+    float yaw;  // 射击角度
+    float pitch;  // 射击角度
+    float roll;  // 射击角度
 };
 
 struct Light {
     cv::Point2f center;
     cv::Point2f top;
     cv::Point2f button;
-    cv::Point2f top2;
+    cv::Point2f top2;  // 与armor的points2一致用途
     cv::Point2f button2;
     float angle;
     float width;

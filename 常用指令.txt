@@ -10,6 +10,13 @@ ros2 launch camera_sim_pkg camera.launch.py
 启动测试节点
 ros2 run team_challenge TestNode 
 
+裁判系统
+ros2 launch referee_pkg referee_pkg_launch.xml \
+    TeamName:="组一辈子乐队3" \
+    StageSelect:=0 \
+    ModeSelect:=0
+
+
 以下为模型插入
 球
 ros2 launch target_model_pkg target_action.launch.py \
@@ -40,7 +47,7 @@ ros2 launch target_model_pkg target_action.launch.py \
     model_name:=armor_red_2 \
     x:=0.0 \
     y:=2.0 \
-    z:=0.6 
+    z:=0.6
 
 ros2 launch target_model_pkg target_action.launch.py \
     model:=src/target_model_pkg/urdf/armor/armor_3.sdf\

@@ -43,20 +43,22 @@ TestNode::TestNode(string name) : Node(name){
 
     namedWindow("Detection Result", WINDOW_AUTOSIZE);
 
-    RCLCPP_INFO(this->get_logger(), "TestNode initialized successfully");
+    RCLCPP_INFO(this->get_logger(), "节点初始化成功");
 
     for (int i = 0; i < 5; ++i){
         num_imgs.push_back(imread(NUMS_PATH + to_string(i + 1) + ".jpg", IMREAD_REDUCED_GRAYSCALE_4));
         assert(!num_imgs[i].empty());
         cout << "长" << num_imgs[i].cols << "宽" << num_imgs[i].rows << endl;
-        RCLCPP_INFO(this->get_logger(), "num%d img read successfully", i + 1);
+        RCLCPP_INFO(this->get_logger(), "模板%d读取成功y", i + 1);
     }
 
     // 初始化 traceList
     for (int i = 0; i < OBJECT_CLASS_COUNT; ++i) {
         traceList.emplace_back(i);
     }
+
     kalman_filter = ArmorTracker(FPS, 10);
+    kalman_filter_time = ArmorTracker_time();
 
     this->declare_parameter("V", 10);
 }
@@ -77,7 +79,6 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
 
     // if (stage == 5)
     //     return;
-
 
     if (msg->encoding == "rgb8" || msg->encoding == "R8G8B8"){
         Mat image(msg->height, msg->width, CV_8UC3,
@@ -115,8 +116,6 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
         getRect(rect_contours);
     // });
 
-
-    // 找圆和装甲板，目前俩色差不多所以就共用预处理了
     
     // 示例的预处理
     // Mat mask1, mask2, mask;
@@ -148,7 +147,6 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     // 物体跟踪，绘制ID
     drawTrackObjectID();
 
-    // 展示结果图这一块
     showResult();
     sendResult(msg);
 }
@@ -265,8 +263,6 @@ void TestNode::getRect(vector<vector<Point>> &contours){
         float area = contourArea(contours[i]);
         float area2 = 0;
 
-        // 逼近就不用了
-        // vector<vector<Point>> conPoly(contours.size());
         vector<RotatedRect> boundRect(contours.size());
         string objectType = "";
 
@@ -281,6 +277,7 @@ void TestNode::getRect(vector<vector<Point>> &contours){
         // RCLCPP_INFO(this->get_logger(), to_string(area).c_str());
         // RCLCPP_INFO(this->get_logger(), to_string(area2).c_str());
         if (area / area2 > 0.80){
+            // 如果图形面积接近最小矩形面积则判定为矩形
             Point2f vertices[4];
             boundRect[i].points(vertices);
 
@@ -384,12 +381,11 @@ void TestNode::matchLights()
     if (light_list.size() <= 1)
         return;
 
-    vector<bool> used(light_list.size(), false);
+    vector<bool> used(light_list.size(), false); // 减少计算次数
 
     int valid_armor = 0;
     int i, j;
 
-    // cout << endl << "lllllll" << lights.size() << endl;
     // for (i = 0; i < lights.size(); ++i)
     //     putText(img_result , to_string(i + 1), Point2f(lights[i].center.x, lights[i].center.y + 40), FONT_HERSHEY_SIMPLEX, 1.2, Scalar(255, 255, 0), 2);
 
@@ -402,10 +398,10 @@ void TestNode::matchLights()
             // cout << abs(lights[i].height / lights[j].height - 1) << endl;
             // cout << used[i] << " " << used[j] << endl;
 
-            if (used[i] || used[j]) continue;
-            float angel_diff = abs(light_list[i].angle - light_list[j].angle);
-            if (angel_diff > 20 && angel_diff < 160) continue;
-            if (abs(light_list[i].height / light_list[j].height - 1) > 0.35) continue;
+            if (used[i] || used[j]) continue;  // 跳过已配对灯条
+            float angel_diff = abs(light_list[i].angle - light_list[j].angle);  
+            if (angel_diff > 20 && angel_diff < 160) continue; // 角度差小于一定值
+            if (abs(light_list[i].height / light_list[j].height - 1) > 0.35) continue;  // 长/短 < 1.35
 
 
             float distance = std::sqrt(std::pow(light_list[i].center.x - light_list[j].center.x, 2) + std::pow(light_list[i].center.y - light_list[j].center.y, 2));
@@ -429,6 +425,7 @@ void TestNode::matchLights()
             armor.number = matchNum(num_img);
 
             if (armor.number == -1) continue;
+            // 最重要的判断
 
             ++valid_armor;
             used[i] = true;
@@ -489,7 +486,7 @@ void TestNode::getNumberImg(Armor &armor, Mat &num_img){
 
 int TestNode::matchNum(Mat &num_img){
     if (num_imgs.size() != 5 || num_img.empty()) {
-        std::cerr << "Error: Invalid input" << endl;
+        std::cerr << "模板不全" << endl;
         return -1;
     }
     
@@ -645,7 +642,7 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
 void TestNode::showResult(){
     // imshow("Detection Result", img_result);
 
-    Mat result_x2;
+    Mat result_x2;  // 两倍大的显示方便看
     resize(img_result, result_x2, Size(), 2, 2);
     imshow("Detection Result", result_x2);
 
@@ -668,7 +665,7 @@ void TestNode::drawTrackObjectID() {
 int main(int argc, char **argv){
     init(argc, argv);
     auto node = std::make_shared<TestNode>("TestNode");
-    RCLCPP_INFO(node->get_logger(), "Starting TestNode");
+    RCLCPP_INFO(node->get_logger(), "启动节点");
     spin(node);
     shutdown();
     return 0;

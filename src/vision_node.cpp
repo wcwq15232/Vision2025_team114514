@@ -31,9 +31,10 @@ int max_history_length = 20;
 int abandon_count = 20;
 string NUMS_PATH = "install/team_challenge/share/team_challenge/nums/";
 
-double V = 15;
+double V = 25;
+double g = 10;
 // 速度设置 ros2 param set /TestNode V var    var为速度*10
-// Armor armor_tmp_test;
+Armor armor_tmp_test;
 
 TestNode::TestNode(string name) : Node(name){
     RCLCPP_INFO(this->get_logger(), "Initializing TestNode");
@@ -61,8 +62,6 @@ TestNode::TestNode(string name) : Node(name){
 
     kalman_filter = ArmorTracker(FPS, 10);
     kalman_filter_time = ArmorTracker_time();
-
-    this->declare_parameter("V", 10);
 }
 
 TestNode::~TestNode() { destroyWindow("Detection Result"); }
@@ -82,7 +81,6 @@ void TestNode::calculateStableSpherePoints(Point2f & center, float &radius, vect
 }
 
 void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
-    V = this->get_parameter("V").as_int() / 10.0f;
 
     cv_bridge::CvImagePtr cv_ptr;
 
@@ -141,25 +139,30 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
     // morphologyEx(mask, mask, MORPH_CLOSE, kernel_3);
     // morphologyEx(mask, mask, MORPH_OPEN, kernel_3);
 
-    threshold(mask, mask, 75, 255, THRESH_BINARY);
+    threshold(mask, mask, threshold_red, 255, THRESH_BINARY);
     dilate(mask, mask, kernel_3);
-
+    // imshow("mask", mask);
 
     cout << stage << endl;
     if (stage == 1)
         getCircle();
 
-    if (stage == 2)
+    else if (stage == 2)
         getArrow();
     // imshow("a", mask);
 
-    // findContours(mask, red_contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-    // getSphere(red_contours);
-    // getArmor(red_contours);
-    // getArmorPose();
+    else {
+        findContours(mask, red_contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+        // getSphere(red_contours);
+        getArmor(red_contours);
+        if (stage == 5) {
+            getArmorPose();
+            predit_hit();
+        }
+    }
+    
 
     // thread_.join();
-    // predit_hit();
 
     // 物体跟踪，绘制ID
     // drawTrackObjectID();
@@ -169,7 +172,13 @@ void TestNode::callback_camera(sensor_msgs::msg::Image::SharedPtr msg){
 }
 
 void TestNode::callback_stage_change(referee_pkg::msg::RaceStage::SharedPtr msg) {
-    stage = msg->stage;
+    if (stage != msg->stage)
+        stage = msg->stage;
+        if (stage != 5) 
+            threshold_red = 190;
+        else
+            threshold_red = 50;
+
     RCLCPP_INFO(this->get_logger(), "stage changed to %d", stage);
 }
 
@@ -177,28 +186,20 @@ void TestNode::callback_hit_srv(referee_pkg::srv::HitArmor_Request::SharedPtr re
     // TODO 当前此函数不知道具体任务，需要等到比赛写
     
     RCLCPP_INFO(this->get_logger(), "receive srv");
+    RCLCPP_INFO(this->get_logger(), "G %f", request->g);
     RCLCPP_INFO(this->get_logger(), "time %f", request->header.stamp.sec + request->header.stamp.nanosec * 1e-9);
     
     vector<Point2f> points(4);
 
-    for (int i = 0; i < 4; ++i){
-        points[i].x = request->modelpoint[i].x;
-        points[i].y = request->modelpoint[i].z;
-        RCLCPP_INFO(this->get_logger(), "Point %d   x: %f  y: %f", i + 1, request->modelpoint[i].x, request->modelpoint[i].z);
+    // for (int i = 0; i < 4; ++i){
+    //     points[i].x = request->modelpoint[i].x;
+    //     points[i].y = request->modelpoint[i].z;
+    //     RCLCPP_INFO(this->get_logger(), "Point %d   x: %f  y: %f", i + 1, request->modelpoint[i].x, request->modelpoint[i].z);
+    // }
 
-    }
-    
-    PoseResult result = poseCalculator.getPose(points);
-    Point3f &tmp = result.position;
-    RCLCPP_INFO(this->get_logger(), "x: %f  y: %f  z: %f", tmp.x, tmp.y, tmp.z);
-
-    // response->yaw = result.yaw;
-    // response->pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, request->g);
-    // response->roll = 0;
-
-    // response->yaw = armor_tmp_test.yaw;
-    // response->pitch = armor_tmp_test.pitch;
-    // response->roll = 0;
+    response->yaw = armor_tmp_test.yaw;
+    response->pitch = armor_tmp_test.pitch;
+    response->roll = 0;
 
     RCLCPP_INFO(this->get_logger(), "y: %f  p: %f  r: %f", response->yaw, response->pitch, response->roll);
 
@@ -207,65 +208,6 @@ void TestNode::callback_hit_srv(referee_pkg::srv::HitArmor_Request::SharedPtr re
 
 void TestNode::preprocess(Mat &src, Mat &result){
     // 阿巴阿巴，或许以后有用呢（
-}
-
-void TestNode::getSphere(vector<vector<Point>> &contours){
-    sphere_list.clear();
-    cv_bridge::CvImagePtr cv_ptr;
-
-    int valid_spheres = 0;
-
-    for (size_t i = 0; i < contours.size(); i++){
-        double area = contourArea(contours[i]);
-        if (area < 450)
-            continue;
-
-        // 计算最小外接圆
-        Point2f center;
-        float radius = 0;
-        minEnclosingCircle(contours[i], center, radius);
-
-        // 计算圆形度
-        double perimeter = arcLength(contours[i], true);
-        double circularity = 4 * CV_PI * area / (perimeter * perimeter);
-
-        if (circularity > 0.7 && radius > 15 && radius < 200){
-            Sphere tmp_sphere {center, radius};
-            calculateStableSpherePoints(tmp_sphere);
-
-            // 绘制检测到的球体
-            circle(img_result, center, static_cast<int>(radius), Scalar(0, 255, 0), 2); // 绿色圆圈
-            circle(img_result, center, 3, Scalar(0, 0, 255), -1);                       // 红色圆心
-
-            // 绘制球体上的四个点
-            vector<string> point_names = {"左", "下", "右", "上"};
-            draw4points(tmp_sphere.points, img_result);
-
-            // 显示半径信息
-            string info_text = "R:" + to_string((int)radius);
-            putText(
-                img_result, info_text, Point(center.x - 15, center.y + 5),
-                FONT_HERSHEY_SIMPLEX, 0.5, Scalar(255, 255, 255), 2);
-
-            valid_spheres++;
-
-            currentDetections[0].push_back(center);
-
-            RCLCPP_INFO(this->get_logger(),
-                        "Found sphere: (%.1f, %.1f) R=%.1f C=%.3f", center.x,
-                        center.y, radius, circularity);
-
-            // 添加到发送列表
-            sphere_list.push_back(tmp_sphere);
-
-            for (int j = 0; j < 4; j++){
-                RCLCPP_INFO(this->get_logger(),
-                            "Sphere %d, Point %d (%s): (%.1f, %.1f)",
-                            valid_spheres + 1, j + 1, point_names[j].c_str(),
-                            tmp_sphere.points[j].x, tmp_sphere.points[j].y);
-            }
-        }
-    }
 }
 
 void TestNode::getCircle()
@@ -332,7 +274,7 @@ void TestNode::getArrow()
 
     imshow("MASK", mask);
     findContours(mask, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    vector<vector<Point>> conPoly(contours.size());
+    vector<vector<Point2f>> conPoly(contours.size());
     
     for (int i = 0; i < contours.size(); ++i) {
         bool bool_list[6] {0,0,0,0,0,0};
@@ -348,7 +290,7 @@ void TestNode::getArrow()
         // cout << conPoly[i].size() << endl;
         int n = conPoly[i].size();
 
-        vector<Point> & points_c = conPoly[i];
+        vector<Point2f> & points_c = conPoly[i];
 
         for (int j = 0; j < n - 1; ++j){
             for (int m = j + 1; m < n; ++m){
@@ -393,7 +335,7 @@ void TestNode::getArrow()
         // cout << left << endl;
         // cout << right << endl;
 
-        Point vec = (points_c[left] - points_c[right]) / 2;
+        Point2f vec = (points_c[left] - points_c[right]) / 2;
         Arrow arrow {
             {points_c[top] - vec,
             points_c[top] + vec,
@@ -410,69 +352,6 @@ void TestNode::getArrow()
 
 }
 
-void TestNode::getRect(vector<vector<Point>> &contours){
-    rect_list.clear();
-
-    int valid_rects = 0;
-
-    cv_bridge::CvImagePtr cv_ptr;
-
-    for (int i = 0; i < contours.size(); ++i)
-    {
-        float area = contourArea(contours[i]);
-        float area2 = 0;
-
-        vector<RotatedRect> boundRect(contours.size());
-        string objectType = "";
-
-        if (area < 50) continue;
-
-        float peri = arcLength(contours[i], true);
-        // approxPolyDP(contours[i], conPoly[i], 0.03 * peri, true);
-        // cout << contours[i].size() << endl;
-        boundRect[i] = minAreaRect(contours[i]);
-        area2 = boundRect[i].size.width * boundRect[i].size.height;
-
-        // RCLCPP_INFO(this->get_logger(), to_string(area).c_str());
-        // RCLCPP_INFO(this->get_logger(), to_string(area2).c_str());
-        if (area / area2 > 0.80){
-            // 如果图形面积接近最小矩形面积则判定为矩形
-            Point2f vertices[4];
-            boundRect[i].points(vertices);
-
-            vector<Point2f> vertices_vec;
-            vector<Point2f> vertices_vec_ordered;
-            for (int i = 0; i < 4; i++) {
-                vertices_vec.push_back(Point(vertices[i]));
-            }
-
-            vector<string> point_names = {"左下", "右下", "右上", "左上"};
-            vertices_vec_ordered = orderPoints(vertices_vec);
-
-            Rect_s tmp;
-            tmp.points = vertices_vec_ordered;
-            tmp.center = boundRect[i].center;
-
-            rect_list.push_back(tmp);
-
-            drawRotatedRect(boundRect[i], img_result);
-            draw4points(vertices_vec_ordered, img_result);
-
-            currentDetections[1].push_back(boundRect[i].center);
-
-            RCLCPP_INFO(this->get_logger(),
-                "Found RECT: (%.1f, %.1f) 宽%.1f 高%.3f", boundRect[i].center.x,
-                boundRect[i].center.y, boundRect[i].size.width, boundRect[i].size.height);
-            ++valid_rects;
-            for (int j = 0; j < 4; j++){
-                RCLCPP_INFO(this->get_logger(),
-                            "Rect %d, Point %d (%s): (%.1f, %.1f)",
-                            valid_rects + 1, j + 1, point_names[j].c_str(),
-                            vertices_vec[j].x, vertices_vec[j].y);
-            }
-        }
-    }
-}
 
 void TestNode::getLights(vector<vector<Point>> &contours)
 {
@@ -525,8 +404,8 @@ void TestNode::getLights(vector<vector<Point>> &contours)
 
         light_list.push_back(light);
 
-        // line(img_result, light.top, light.button, Scalar(255, 0, 0), 3);
-        // circle(img_result, tmp.center, 3, Scalar(0, 255, 0), 4);
+        line(img_result, light.top, light.button, Scalar(255, 0, 0), 3);
+        circle(img_result, tmp.center, 3, Scalar(0, 255, 0), 4);
 
         // drawRotatedRect(img_result, tmp);            
         // putText(img_result , to_string(tmp.angle), tmp.center, FONT_HERSHEY_SIMPLEX, 1.5, Scalar(0, 255, 0), 2);
@@ -599,17 +478,23 @@ void TestNode::matchLights()
 
             // imshow("Armor " + to_string(armor_list.size()), num_img);
             vector<string> point_names = {"左下", "右下", "右上", "左上"};
-            for (int j = 0; j < 4; j++){
-                RCLCPP_INFO(this->get_logger(),
-                            "Armor_%d %zu, Point %d (%s): (%.1f, %.1f)",
-                            armor.number, armor_list.size(), j + 1, point_names[j].c_str(),
-                            armor.points[j].x, armor.points[j].y);
-            }
-            currentDetections[armor.number + 1].emplace_back(
-                (armor.points[0].x + armor.points[1].x + armor.points[2].x + armor.points[3].x) / 4,
-                (armor.points[0].y + armor.points[1].y + armor.points[2].y + armor.points[3].y) / 4);
+            // for (int j = 0; j < 4; j++){
+            //     RCLCPP_INFO(this->get_logger(),
+            //                 "Armor_%d %zu, Point %d (%s): (%.1f, %.1f)",
+            //                 armor.number, armor_list.size(), j + 1, point_names[j].c_str(),
+            //                 armor.points[j].x, armor.points[j].y);
+            // }
+
+
+            // currentDetections[armor.number + 1].emplace_back(
+            //     (armor.points[0].x + armor.points[1].x + armor.points[2].x + armor.points[3].x) / 4,
+            //     (armor.points[0].y + armor.points[1].y + armor.points[2].y + armor.points[3].y) / 4);
             // line(img_result, center1, center2, Scalar(0, 0, 0), 2);
+
             // circle(img_result, armor.center, 3, Scalar(0, 255, 0), 4);
+
+
+
         }
     }
 }
@@ -693,6 +578,8 @@ void TestNode::getArmorPose(){
         armor.pose = poseCalculator.getPose(armor.points);
 
         Point3f &tmp = armor.pose.position;
+        tmp.y += 0.2;
+        tmp.z = 1.25;
         float pitch = get_hit_angle(V, sqrt(tmp.x * tmp.x + tmp.y * tmp.y), tmp.z, 9.8);
         if (pitch == NAN)
             pitch = -1;
@@ -730,9 +617,14 @@ void TestNode::predit_hit(){
 
         float raw = atan2(predit.x, predit.y);
 
+        if (stage == 5)
+            armor_tmp_test = armor_list[0];
+
         RCLCPP_INFO(this->get_logger(), "pitch: %f  raw: %f", pitch, raw);
         RCLCPP_INFO(this->get_logger(), "predit point x: %f  y: %f z: %f", predit.x, predit.y, predit.z);
     }
+
+
 
     // line(img_result, Point2f(0, predit.y), Point2f(639, predit.y), Scalar(0, 0, 0), 1);
     // line(img_result, Point2f(predit.x, 0), Point2f(predit.x, 639), Scalar(0, 0, 0), 1);
@@ -771,18 +663,18 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
         //     msg_object.objects.push_back(obj);
         // }
 
-        // for (const Armor& tmp_armor: armor_list){
-        //     referee_pkg::msg::Object obj;
-        //     obj.target_type = "armor_red_" + to_string(tmp_armor.number);
-        //     for (int j = 0; j < 4; j++){
-        //         geometry_msgs::msg::Point corner;
-        //         corner.x = tmp_armor.points[j].x;
-        //         corner.y = tmp_armor.points[j].y;
-        //         corner.z = 0.0;
-        //         obj.corners.push_back(corner);
-        //     }
-        //     msg_object.objects.push_back(obj);
-        // }
+        for (const Armor& tmp_armor: armor_list){
+            referee_pkg::msg::Object obj;
+            obj.target_type = "armor_red_" + to_string(tmp_armor.number);
+            for (int j = 0; j < 4; j++){
+                geometry_msgs::msg::Point corner;
+                corner.x = tmp_armor.points[j].x;
+                corner.y = tmp_armor.points[j].y;
+                corner.z = 0.0;
+                obj.corners.push_back(corner);
+            }
+            msg_object.objects.push_back(obj);
+        }
         
         for (const Circle& tmp_circle: circle_list){
             referee_pkg::msg::Object obj1;
@@ -793,7 +685,7 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
                 corner.y = tmp_circle.points1[j].y;
                 corner.z = 0.0;
                 obj1.corners.push_back(corner);
-                RCLCPP_INFO(this->get_logger(), "circle1 Point %d  (%f, %f)", j, corner.x, corner.y);
+                // RCLCPP_INFO(this->get_logger(), "circle1 Point %d  (%f, %f)", j, corner.x, corner.y);
             }   
             msg_object.objects.push_back(obj1);
 
@@ -806,7 +698,7 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
                 corner.y = tmp_circle.points2[j].y;
                 corner.z = 0.0;
                 obj2.corners.push_back(corner);
-                RCLCPP_INFO(this->get_logger(), "circle2 Point %d  (%f, %f)", j, corner.x, corner.y);
+                // RCLCPP_INFO(this->get_logger(), "circle2 Point %d  (%f, %f)", j, corner.x, corner.y);
             }
             msg_object.objects.push_back(obj2);
         }
@@ -828,9 +720,9 @@ void TestNode::sendResult(sensor_msgs::msg::Image::SharedPtr msg){
         
         // RCLCPP_INFO(this->get_logger(), "Published %zu sphere targets", sphere_list.size());        
         // RCLCPP_INFO(this->get_logger(), "Published %zu rect targets", rect_list.size());        
-        // RCLCPP_INFO(this->get_logger(), "Published %zu armor targets", armor_list.size());
-        RCLCPP_INFO(this->get_logger(), "Published %zu circle targets", circle_list.size());
-        RCLCPP_INFO(this->get_logger(), "Published %zu arrow targets", arrow_list.size());
+        RCLCPP_INFO(this->get_logger(), "Published %zu armor targets", armor_list.size());
+        // RCLCPP_INFO(this->get_logger(), "Published %zu circle targets", circle_list.size());
+        // RCLCPP_INFO(this->get_logger(), "Published %zu arrow targets", arrow_list.size());
 
         circle_list.clear();
         arrow_list.clear();

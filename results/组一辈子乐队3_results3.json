@@ -1,0 +1,49 @@
+{
+    "RaceStage3": [
+        {
+            "average_numdetecterror": 0.543,
+            "average_orientationerror": 3.14,
+            "fps": 44,
+            "max_numdetecterror": 999.0,
+            "max_orientationerror": 3.14,
+            "run_id": "abe42484-c4c9-4d4d-a97f-c4a0abb79c74",
+            "score": 0.0,
+            "target_type": "armor_red_2",
+            "timestamp": "2025-11-29T17:03:57Z"
+        },
+        {
+            "average_numdetecterror": 0.663,
+            "average_orientationerror": 1.83,
+            "fps": 44,
+            "max_numdetecterror": 0.663,
+            "max_orientationerror": 1.83,
+            "run_id": "e88a2bcc-d442-4679-a80e-d3332cd6aa46",
+            "score": 8.0,
+            "target_type": "armor_red_1",
+            "timestamp": "2025-11-29T17:03:57Z"
+        },
+        {
+            "average_numdetecterror": 0.663,
+            "average_orientationerror": 3.14,
+            "fps": 44,
+            "max_numdetecterror": 999.0,
+            "max_orientationerror": 3.14,
+            "run_id": "08d5a3ec-631e-4fce-978b-c604a86fd651",
+            "score": 0.0,
+            "target_type": "armor_red_3",
+            "timestamp": "2025-11-29T17:03:57Z"
+        },
+        {
+            "average_numdetecterror": 0.543,
+            "average_orientationerror": 1.679,
+            "fps": 44,
+            "max_numdetecterror": 0.543,
+            "max_orientationerror": 1.679,
+            "run_id": "de5797b6-8ba1-41fd-a40f-670fd1396db1",
+            "score": 9.0,
+            "target_type": "armor_red_4",
+            "timestamp": "2025-11-29T17:03:57Z"
+        }
+    ],
+    "team_name": "组一辈子乐队3"
+}

@@ -115,6 +115,7 @@ inline double get_hit_angle(double v, double target_x, double target_y, double g
 
     const double x = target_x;
     const double y = target_y;
+    // std::cout << target_x << std::endl << target_y << std::endl;
 
     const double v2 = v * v;
     const double gx2_over_2v2 = g * x * x / (2.0 * v2);

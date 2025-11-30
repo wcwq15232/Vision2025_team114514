@@ -100,7 +100,7 @@ basic_types.hpp中包含各类型的结构体，便于通用
 
 弹丸的运动满足抛体运动，我们可以算出抛体运动的轨迹方程以及发射角度
 
-[语雀文档](https://www.yuque.com/yuqueyonghuakgijn/xmbrbw/pgqghoqal9cfolwa?singleDoc# 《校内赛 技术报告》)
+[语雀文档](https://www.yuque.com/yuqueyonghuakgijn/xmbrbw/pgqghoqal9cfolwa)
 
 ## 校内赛赛时技术报告
 

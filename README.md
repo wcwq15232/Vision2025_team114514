@@ -102,6 +102,8 @@ basic_types.hpp中包含各类型的结构体，便于通用
 
 [语雀文档](https://www.yuque.com/yuqueyonghuakgijn/xmbrbw/pgqghoqal9cfolwa?singleDoc# 《校内赛 技术报告》)
 
+## 校内赛赛时技术报告
+
 **stage1**
 
 圆环识别较为简单，由于目标为红色，直接使用红色通道减去蓝色通道再进行二值化
@@ -130,3 +132,5 @@ findContours()的第四个参数可以指定轮廓识别的模式，cv::RETR_CCO
 此部分于赛前完成 有需要参考赛前技术报告 当然5根本做不出来就是了
 
 比赛中遇到的问题是干扰，红色球与灯条颜色相近造成了一定的干扰，赛前因为比赛文档中说有动态目标的识别而且确实有一个消息接口可以让物体动起来，为提高可识别的角度(实际上也没提高多少)，而且当时装甲板和球的预处理用的是同一个就调低了二值化的阈值，比赛球倒成干扰项了，故根据比赛阶段切换消息修改阈值(不过5做不出来，实际上也没用上)
+
+[语雀文档](https://www.yuque.com/yuqueyonghuakgijn/xmbrbw/xqwacamfrddvydaa?singleDoc#)
